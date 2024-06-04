@@ -3,14 +3,14 @@ module K1dBiv
 export k1d_biv
 
 """
-    ripley_k(X, Y, T)
+    k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
 
-Estimate Ripley's K function for a bivariate point pattern.
+Estimate Ripley's K function for a bivariate point pattern of integer values.
 
 # Arguments
-- `X::AbstractVector`: Vector with data of one kind sorted in ascending order.
-- `Y::AbstractVector`: Vector with data of one kind sorted in ascending order.
-- `T::AbstractVector`: Vector with diameters to search over in ascending order.
+- `X::Vector{Int64}`: Vector with data of one kind (integer values) sorted in ascending order.
+- `Y::Vector{Int64}`: Vector with data of another kind (integer values) sorted in ascending order.
+- `T::Vector{Int64}`: Vector with diameters (integer values) to search over in ascending order.
 
 # Returns
 - `::Vector{Float64}`: Vector of estimated K_XY values for each `t` in `T`.
