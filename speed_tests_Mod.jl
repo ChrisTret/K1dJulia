@@ -1,7 +1,5 @@
 module SpeedTests
 
-export speed_comparison_univ
-
 #check if this is the rigth package
 using Plots 
 

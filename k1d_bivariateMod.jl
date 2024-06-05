@@ -1,7 +1,5 @@
 module K1dBiv
 
-export k1d_biv
-
 """
     k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
 
