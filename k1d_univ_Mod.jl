@@ -1,5 +1,7 @@
 module K1dUniv
 
+export k1d_univ
+
 """
     k1d_univ(X::Vector{Int64}, T::Vector{Int64})
 

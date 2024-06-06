@@ -1,6 +1,8 @@
-module KPlots
+module K1dPlots
 
 export k_plot
+
+using Plots
 
 """
     k_plot

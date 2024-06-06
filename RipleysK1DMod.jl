@@ -2,9 +2,10 @@ module RipleysK1D
 
 include("k1d_univ_Mod.jl")
 include("k1d_bivariateMod.jl")
-include("speed_tests_Mod.jl")
+include("k1d_speed_tests_Mod.jl")
 include("k_plotsMod.jl")
+using .K1dUniv, .K1dBiv, .K1dSpeedTests, .K1dPlots, Plots
 
-export k1d_univ, k1d_biv, speed_comparison_univ
+export k1d_univ, k1d_biv, speed_comparison_univ, k_plot
 
 end # end of module

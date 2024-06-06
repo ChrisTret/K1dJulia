@@ -1,4 +1,4 @@
-module SpeedTests
+module K1dSpeedTests
 
 #check if this is the rigth package
 using Plots 
