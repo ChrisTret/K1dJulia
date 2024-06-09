@@ -1,6 +1,6 @@
 module K1dBiv
 
-export k1d_biv
+export k1d_biv, k1d_biv_all_comparisons
 
 """
     k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
@@ -73,3 +73,36 @@ function check_range_biv(X::Vector{Int64}, Y::Vector{Int64}, a::Int64, j::Int64,
 end
 
 end # end of module
+
+
+"""
+    k1d_biv_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64}) -> Dict{Tuple{String, String}, Vector{Int64}}
+
+Runs the `k1d_biv` function for each possible pair of keys in the dictionary `Data`. The result for each pair is stored in a nested dictionary where the key is a tuple of the form `(key1, key2)` and the value is the result vector from `k1d_biv`.
+
+# Arguments
+- `Data::Dict{String, Vector{Int64}}`: A dictionary where each key is a name (e.g., `repFamily`) and the value is a vector of `genoCenter` values.
+- `T::Vector{Int64}`: A vector of values to be used as the third parameter for the `k1d_biv` function.
+
+# Returns
+- `Dict{Tuple{String, String}, Vector{Int64}}`: A dictionary where each key is a tuple of two names from `Data` and the value is the result vector from `k1d_biv` for the corresponding pair of `genoCenter` vectors.
+
+"""
+function k1d_biv_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64})::Dict{Tuple{String, String}, Vector{Float64}}
+    # Initialize the results dictionary
+    results = Dict{Tuple{String, String}, Vector{Float64}}()
+    # Get the keys of the dictionary
+    dict_keys = collect(keys(Data))
+
+# Loop over each pair of keys (including the same-key pair)
+    for key1 in dict_keys
+        for key2 in dict_keys
+            # Get the genoCenter vectors for the current pair of keys
+            X = Data[key1]
+            Y = Data[key2]
+            # Run the k1d_biv function and store the result
+            results[(key1, key2)] = k1d_biv(X, Y, T)
+        end
+    end
+return results
+end
