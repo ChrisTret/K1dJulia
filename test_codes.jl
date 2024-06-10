@@ -1,6 +1,4 @@
-include("k1d_univ_Mod.jl")
-include("k1d_bivariate.jl")
-
+include("k1d_functionsMod.jl")
 using K1dUniv
 using K1dBiv
 
