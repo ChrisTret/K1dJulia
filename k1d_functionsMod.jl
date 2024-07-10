@@ -1,5 +1,7 @@
 module K1dFun
 
+using Base.Threads
+
 export k1d_univ, k1d_biv, k1d_all_comparisons
 
 """
@@ -16,23 +18,24 @@ Estimate Ripley's K function for a univariate point pattern of integer values.
 """
 function k1d_univ(X::Vector{Int64}, T::Vector{Int64})
     N = length(X)
-    X_sorted = sort(X)
     
-    lambda_hat = N / (X_sorted[end] - X_sorted[1] + 1)
+    lambda_hat = N / (X[end] - X[1] + 1)
     obs_sum = zeros(Int, length(T))
     K_hat = zeros(Float64, length(T))
+
+    down_cum = zeros(Int, length(T))
+    up_cum = zeros(Int, length(T))
+    curr_sum = zeros(Int, length(T))
     
     for a in 1:N
-        down_cum = zeros(Int, length(T))
-        up_cum = zeros(Int, length(T))
+        fill!(curr_sum,0)
         down_next_start = 1
         up_next_start = 1
-        curr_sum = zeros(Int, length(T))
 
         for t_idx in 1:length(T)
             t = T[t_idx]
-            down_result = check_range_univ(X_sorted, a, down_next_start, t, :down)
-            up_result = check_range_univ(X_sorted, a, up_next_start, t, :up)
+            down_result = check_range_univ(X, a, down_next_start, t, :down)
+            up_result = check_range_univ(X, a, up_next_start, t, :up)
             
             # Update cumulative sums for the current t
             down_cum[t_idx] = down_result.my_sum
@@ -179,7 +182,6 @@ function k1d_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64}
     results = Dict{Tuple{String, String}, Vector{Float64}}()
     # Get the keys of the dictionary
     dict_keys = collect(keys(Data))
-
 
 # Loop over each pair of keys (including the same-key pair)
     for key1 in dict_keys
