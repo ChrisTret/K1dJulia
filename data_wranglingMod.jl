@@ -1,6 +1,6 @@
 module DataWrangling
 
-export process_genome_data, merge_dictionaries
+export process_genome_data, merge_dictionaries, process_genome_data_by_chromosome
 
 using CSV
 using DataFrames
