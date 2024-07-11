@@ -1,6 +1,6 @@
 module K1dPlots
 
-export k_plot, plot_top_n, plot_by_key, plot_pair
+export k_plot, l_plot,  plot_top_n, plot_by_key, plot_pair
 
 using Plots
 
@@ -10,11 +10,41 @@ using Plots
 Plots both the observed K̂ and the theoretical K under CSR against T
 
 # Arguments
-`K_dict::Dict{Tuple{String, String}, Vector{Float64}}`: Dictionary containing the data vectors
-`keys::Tuple{String, String}`: Tuple of keys to access the data
-`T::Vector{Int64}`: Vector of t values searched over
+-`K_dict::Dict{Tuple{String, String}, Vector{Float64}}`: Dictionary containing the data vectors
+-`keys::Tuple{String, String}`: Tuple of keys to access the data
+-`T::Vector{Int64}`: Vector of t values searched over
 
 """
+function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64},confidence_bounds::Matrix{Float64} = nothing)
+    K̂ = K_dict[keys]
+    key1, key2 = keys
+    
+    # E(K̂) under CSR
+    theoretical = 2 * T
+    
+
+    # Generate title based on keys
+    title = "Observed vs Theoretical K: $key1 - $key2"
+    
+    # Plot theoretical and observed K values
+    plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "K(t)")
+    plot!(T, K̂, color = :red, label = "Observed")
+    
+
+    if confidence_bounds !== nothing
+        # Compute confidence intervals
+        lower_bound = confidence_bounds[:,1]
+        upper_bound = confidence_bounds[:,2]
+    
+        # Plot confidence intervals
+        plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
+        plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+    end
+
+    display(current())
+end
+
+
 function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64})
     K̂ = K_dict[keys]
     key1, key2 = keys
@@ -23,10 +53,50 @@ function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
     theoretical = 2 * T
     
     # Generate title based on keys
-    title = "Observed vs Theoretical K Values: $key1 - $key2"
+    title = "Observed vs Theoretical K: $key1 - $key2"
     
-    plot(T, theoretical, color = :blue, label = "Theoretical", title = title)
+    # Plot theoretical and observed K values
+    plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "K(t)")
     plot!(T, K̂, color = :red, label = "Observed")
+    
+    display(current())
+end
+
+"""
+    l_plot
+
+Plots both the observed L - T = K̂/2 - T and the theoretical L - T under CSR against T
+
+# Arguments
+`K_dict::Dict{Tuple{String, String}, Vector{Float64}}`: Dictionary containing the data vectors
+`keys::Tuple{String, String}`: Tuple of keys to access the data
+`T::Vector{Int64}`: Vector of t values searched over
+
+"""
+function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, bootstrap_variance_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64})
+    L̂ = (K_dict[keys] ./ 2 .- T)
+    bootstrap_variance = (bootstrap_variance_dict[keys] ./ 4)  # Since L = K̂ / 2 - T, the variance is scaled by 1/4
+    key1, key2 = keys
+    
+    # E(K̂) under CSR
+    theoretical = 0 * T
+    
+    # Compute confidence intervals
+    lower_bound = L̂ .- 1.96 * sqrt.(bootstrap_variance) ./ 4 
+    upper_bound = L̂ .+ 1.96 * sqrt.(bootstrap_variance) ./ 4
+    
+    # Generate title based on keys
+    title = "Observed vs Theoretical L(t) - t: $key1 - $key2"
+    
+    # Plot theoretical and observed L values
+    plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "L(t)")
+    plot!(T, L̂, color = :red, label = "Observed")
+    
+    # Plot confidence intervals
+    plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Confidence Interval")
+    plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+    
+    display(current())
 end
 
 
