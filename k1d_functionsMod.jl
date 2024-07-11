@@ -238,6 +238,36 @@ function k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T:
 end
 
 
+function k1d_mean_across_chromosomes(k1d_results::Dict{Tuple{String, String, String}, Vector{Float64}}, T::Vector{Int64})::Dict{Tuple{String, String}, Vector{Float64}}
+    # Initialize the dictionary to store mean values
+    mean_results = Dict{Tuple{String, String}, Vector{Float64}}()
+    
+    # Extract unique pairs of element names from k1d_results keys
+    pairs = unique((key[1], key[2]) for key in keys(k1d_results))
+    
+    # Loop over each pair of element names
+    for (key1, key2) in pairs
+        # Initialize a matrix to store k1d values for all matching chromosomes
+        k1d_matrix = []
+
+        # Extract k1d values for each matching chromosome and stack them into a matrix
+        for (k1, k2, chrom) in keys(k1d_results)
+            if k1 == key1 && k2 == key2
+                push!(k1d_matrix, k1d_results[(k1, k2, chrom)])
+            end
+        end
+
+        if !isempty(k1d_matrix)
+            k1d_matrix = reduce(hcat, k1d_matrix)
+            
+            # Calculate the mean for each t
+            mean_values = mean(k1d_matrix, dims=2)
+            mean_results[(key1, key2)] = vec(mean_values)
+        end
+    end
+    
+    return mean_results
+end
 
 
 end # end of module
