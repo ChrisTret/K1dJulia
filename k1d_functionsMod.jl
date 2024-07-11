@@ -201,4 +201,43 @@ function k1d_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64}
 return results
 end
 
+function k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T::Vector{Int64})::Dict{Tuple{String, String, String}, Vector{Float64}}
+    # Initialize the results dictionary
+    results = Dict{Tuple{String, String, String}, Vector{Float64}}()
+    # Get the keys of the outer dictionary (element names)
+    outer_keys = collect(keys(data))
+
+    # Loop over each pair of outer keys (including the same-key pair)
+    for key1 in outer_keys
+        for key2 in outer_keys
+            # Get the inner dictionaries for the current pair of outer keys
+            dict1 = data[key1]
+            dict2 = data[key2]
+
+            # Get the keys of the inner dictionaries (chromosomes)
+            inner_keys1 = collect(keys(dict1))
+            inner_keys2 = collect(keys(dict2))
+
+            # Loop over each pair of inner keys (matching chromosomes)
+            for chrom in inner_keys1
+                if chrom in inner_keys2
+                    X = dict1[chrom]
+                    Y = dict2[chrom]
+
+                    if key1 == key2
+                        result = k1d_univ(X, T)
+                    else
+                        result = k1d_biv(X, Y, T)
+                    end
+                    results[(key1, key2, chrom)] = result
+                end
+            end
+        end
+    end
+    return results
+end
+
+
+
+
 end # end of module
