@@ -70,6 +70,57 @@ end
 
 
 """
+    process_genome_data_by_chromosome(file_path::String, name_col::String, chrom_col::String, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing) -> Dict{String, Dict{String, Vector{Int64}}}
+
+Processes genomic data from a TSV file and organizes it by name and chromosome.
+
+# Arguments
+- `file_path::String`: The path to the TSV file containing the genomic data.
+- `name_col::String`: The column name for the genomic element (e.g., 'repName').
+- `chrom_col::String`: The column name for the chromosome (e.g., 'chrom').
+- `start_colname::Union{String, Nothing}`: The name of the column indicating the start of an element.
+- `end_colname::Union{String, Nothing}`: The name of the column indicating the end of an element.
+
+# Returns
+- `Dict{String, Dict{String, Vector{Int64}}}`: A nested dictionary where the first key is the name, and the second key is the chromosome, with each value being a vector of calculated centers or column values.
+"""
+function process_genome_data_by_chromosome(file_path::String, name_col::String, chrom_col::String, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Vector{Int64}}}
+    # Read the TSV file into a DataFrame
+    data = CSV.read(file_path, DataFrame; header = 1)
+    result_dict = Dict{String, Dict{String, Vector{Int64}}}()
+
+    if start_colname !== nothing && end_colname !== nothing
+        # Calculate genoCenter
+        data[!, "Center"] = round.(Int, (data[:, start_colname] .+ data[:, end_colname]) ./ 2)
+        data_col = "Center"
+    elseif start_colname !== nothing
+        # Use start column
+        data_col = start_colname
+    else
+        # Reject attempt
+        println("Invalid function inputs for process_genome_data_by_chromosome")
+        return nothing
+    end
+
+    # Group by name and chromosome
+    grouped_data = groupby(data, [name_col, chrom_col])
+    for g in grouped_data
+        name = g[1, name_col]
+        chrom = g[1, chrom_col]
+        values = sort(g[:, data_col])
+
+        if !haskey(result_dict, name)
+            result_dict[name] = Dict{String, Vector{Int64}}()
+        end
+
+        result_dict[name][chrom] = values
+    end
+
+    return result_dict
+end
+
+
+"""
     merge_dictionaries(dicts::Vector{Dict{String, Vector{Int64}}}) -> Dict{String, Vector{Int64}}
 
 Merges multiple dictionaries into a single dictionary, handling duplicate keys by renaming them and printing a summary of duplicates.
