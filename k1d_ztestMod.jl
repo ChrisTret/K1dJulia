@@ -1,8 +1,8 @@
-module ZTests
+module K1dZTests
 
 using Distributions
 
-export z_test
+export z_test, z_tests_all_comparisons
 
 function z_test(results::Dict{Tuple{String, String}, Vector{Float64}}, T::Vector{Int64}, key_pair::Tuple{String, String}, variance::Vector{Float64}, alpha::Float64)
     μ = 2 * T
@@ -18,11 +18,22 @@ function z_test(results::Dict{Tuple{String, String}, Vector{Float64}}, T::Vector
     significant = clustering .| dispersion
     
 
-    println("Clustering detected at t = ", T[clustering])
-    println("Dispersion detected at t = ", T[dispersion])
-    println("Significant deviation from CSR detected at t = ", T[significant])
-    println("Most significant distance", max_deviation_distance)
+    # println("Clustering detected at t = ", T[clustering])
+    # println("Dispersion detected at t = ", T[dispersion])
+    # println("Significant deviation from CSR detected at t = ", T[significant])
+    # println("Most significant distance ", max_deviation_distance)
 
+end
+
+
+function z_tests_all_comparisons(results::Dict{Tuple{String, String}, Vector{Float64}}, T::Vector{Int64}, variances::Dict{Tuple{String, String}, Vector{Float64}}, alpha::Float64)
+    for key_pair in keys(results)
+        if haskey(variances, key_pair)
+            z_test(results, T, key_pair, variances[key_pair], alpha)
+        else
+            println("Variance not found for key pair: ", key_pair)
+        end
+    end
 end
 
 end # end of module
