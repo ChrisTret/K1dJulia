@@ -4,7 +4,7 @@ include("k1d_functionsMod.jl")
 
 using .K1dFun, Statistics, Random, Base.Threads
 
-export bootstrap_variance_k1d, bootstrap_variance_k1d_all_comparisons
+export bootstrap_variance_k1d, bootstrap_variance_k1d_all_comparisons, approx_k1d_mean_variance_chromosome
 
 """
     bootstrap_variance_k1d(Data::Dict{String, Vector{Int64}}, keys::Tuple{String,String}, T::Vector{Int64}, n::Int, B::Int) -> Dict{Tuple{String, String}, Vector{Float64}}
@@ -73,6 +73,26 @@ function bootstrap_variance_k1d_all_comparisons(Data::Dict{String, Vector{Int64}
     end
     
     return bootstrap_results
+end
+
+
+
+function approx_k1d_mean_variance_chromosome(results::Dict{Tuple{String, String, String}, Vector{Float64}}, k_means::Dict{Tuple{String, String}, Vector{Float64}}, key_pair::Tuple{String,Stirng})
+    len_T = length(k_means[key_pair])
+    k_mean_var = Dict{key_pair => zeros(len_T)}()
+
+    filtered_keys = filter(key -> key[1] == key_pair[1] && key[2] == key_pair[2], keys(results))
+    R = length(filtered_keys)
+    k_mean = k_means[key_pair]
+
+
+    for key in filtered_keys
+        k_mean_var += (results[key]- k_mean).^2
+    end
+
+    k_mean_var = (1/(R*(R-1))).* k_mean_var
+
+    return k_mean_var
 end
 
 end # end of module
