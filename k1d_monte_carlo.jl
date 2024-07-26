@@ -6,7 +6,7 @@ using .K1dFun, Distributions
 
 export monte_carlo_sim, monte_carlo_test, extract_mcecb
 
-function monte_carlo_sim(data::Dict{String,Vector{Int64}}, keys::Tuple{String, String}, T::Vector{Int64}, m::Int64 = 100)
+function monte_carlo_sim(data::Dict{String,Vector{Int64}}, keys::Tuple{String, String}, T::Vector{Int64}, m::Int64 = 1000)
     key1 = keys[1]
     key2 = keys[2]
     X = data[key1]
