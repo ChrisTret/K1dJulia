@@ -13,7 +13,7 @@ Plots both the observed K̂ and the theoretical K under CSR against T
 -`K_dict::Dict{Tuple{String, String}, Vector{Float64}}`: Dictionary containing the data vectors
 -`keys::Tuple{String, String}`: Tuple of keys to access the data
 -`T::Vector{Int64}`: Vector of t values searched over
-
+-`confidence_bounds::Matrix{Float64}`: A matrix where the first column is the lower confidence bound and the second column the uppoer confidence bound
 """
 function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64},confidence_bounds::Matrix{Float64} = nothing)
     K̂ = K_dict[keys]
@@ -32,13 +32,24 @@ function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
     
 
     if confidence_bounds !== nothing
-        # Compute confidence intervals
-        lower_bound = confidence_bounds[:,1]
-        upper_bound = confidence_bounds[:,2]
-    
-        # Plot confidence intervals
-        plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
-        plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+        # Check if confidence_bounds contains just variances
+        if size(confidence_bounds,2) == 1
+            # Create nomral based 95% confidence intervals
+            lower_bound = K̂ - 1.96.*sqrt.(confidence_bounds[:,1])
+            upper_bound = K̂ + 1.96.*sqrt.(confidence_bounds[:,1])
+
+            # Plot confidence intervals
+            plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Normal Based 95% Confidence Intervals")
+            plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+        elseif size(confidence_bounds,2) == 2
+             # Use Monte Carlo Empirical Confidence Bounds
+             lower_bound = confidence_bounds[:,1]
+             upper_bound = confidence_bounds[:,2]
+ 
+             # Plot confidence intervals
+             plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
+             plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+        end
     end
 
     display(current())
@@ -71,19 +82,16 @@ Plots both the observed L - T = K̂/2 - T and the theoretical L - T under CSR ag
 `K_dict::Dict{Tuple{String, String}, Vector{Float64}}`: Dictionary containing the data vectors
 `keys::Tuple{String, String}`: Tuple of keys to access the data
 `T::Vector{Int64}`: Vector of t values searched over
+-`confidence_bounds::Matrix{Float64}`: A matrix where the first column is the lower confidence bound and the second column the uppoer confidence bound
+
 
 """
-function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, bootstrap_variance_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64})
+function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64},confidence_bounds::Matrix{Float64} = nothing)
     L̂ = (K_dict[keys] ./ 2 .- T)
-    bootstrap_variance = (bootstrap_variance_dict[keys] ./ 4)  # Since L = K̂ / 2 - T, the variance is scaled by 1/4
     key1, key2 = keys
     
     # E(K̂) under CSR
     theoretical = 0 * T
-    
-    # Compute confidence intervals
-    lower_bound = L̂ .- 1.96 * sqrt.(bootstrap_variance) ./ 4 
-    upper_bound = L̂ .+ 1.96 * sqrt.(bootstrap_variance) ./ 4
     
     # Generate title based on keys
     title = "Observed vs Theoretical L(t) - t: $key1 - $key2"
@@ -92,9 +100,16 @@ function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, bootstrap_
     plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "L(t)")
     plot!(T, L̂, color = :red, label = "Observed")
     
-    # Plot confidence intervals
-    plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Confidence Interval")
-    plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+
+    if confidence_bounds !== nothing
+        # Compute confidence intervals
+        lower_bound = confidence_bounds[:,1]
+        upper_bound = confidence_bounds[:,2]
+    
+        # Plot confidence intervals
+        plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
+        plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+    end
     
     display(current())
 end
