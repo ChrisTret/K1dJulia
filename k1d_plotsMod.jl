@@ -1,6 +1,6 @@
 module K1dPlots
 
-export k_plot, l_plot,  plot_top_n, plot_by_key, plot_pair
+export k_plot, l_plot, z_plot, plot_top_n, plot_by_key, plot_pair
 
 using Plots
 
@@ -111,6 +111,19 @@ function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
         plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
     end
     
+    display(current())
+end
+
+
+function z_plot(z_values::Vector{Float64}, T::Vector{Int64})
+    # Create the plot
+    plot(T, z_values, label="Z values", xlabel="t", ylabel="Z(t)", title="Z vs T",
+         lw=2, linecolor=:red)
+    
+    # Add the zero line
+    plot!(T, 0 * T, linestyle = :dash, color = :blue, label = "")
+
+    # Display the plot
     display(current())
 end
 
