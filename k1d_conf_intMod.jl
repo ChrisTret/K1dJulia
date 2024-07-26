@@ -4,7 +4,7 @@ include("k1d_functionsMod.jl")
 
 using .K1dFun, Statistics, Random, Base.Threads
 
-export bootstrap_variance_k1d, bootstrap_variance_k1d_all_comparisons, approx_k1d_mean_variance_chromosome
+export bootstrap_variance_k1d, bootstrap_variance_k1d_all_comparisons, approx_k1d_mean_variance_chromosome, approx_k1d_mean_variance_all_comparisons
 
 """
     bootstrap_variance_k1d(Data::Dict{String, Vector{Int64}}, keys::Tuple{String,String}, T::Vector{Int64}, n::Int, B::Int) -> Dict{Tuple{String, String}, Vector{Float64}}
@@ -77,22 +77,47 @@ end
 
 
 
-function approx_k1d_mean_variance_chromosome(results::Dict{Tuple{String, String, String}, Vector{Float64}}, k_means::Dict{Tuple{String, String}, Vector{Float64}}, key_pair::Tuple{String,Stirng})
+function approx_k1d_mean_variance_chromosome(results::Dict{Tuple{String, String, String}, Vector{Float64}}, k_means::Dict{Tuple{String, String}, Vector{Float64}}, key_pair::Tuple{String, String})
     len_T = length(k_means[key_pair])
-    k_mean_var = Dict{key_pair => zeros(len_T)}()
+    k_mean = k_means[key_pair]
+    k_mean_var = Dict{Tuple{String, String}, Vector{Float64}}(key_pair => zeros(len_T))
 
     filtered_keys = filter(key -> key[1] == key_pair[1] && key[2] == key_pair[2], keys(results))
     R = length(filtered_keys)
-    k_mean = k_means[key_pair]
 
+    if R > 1
+        for key in filtered_keys
+            diff = results[key] .- k_mean
+            k_mean_var[key_pair] .+= diff .* diff
+        end
 
-    for key in filtered_keys
-        k_mean_var += (results[key]- k_mean).^2
+        scale_factor = 1 / (R * (R - 1))
+        k_mean_var[key_pair] .*= scale_factor
+    else
+        k_mean_var[key_pair] .= NaN
+        println("Not enough data points to calculate variance for key pair $(key_pair).")
     end
-
-    k_mean_var = (1/(R*(R-1))).* k_mean_var
 
     return k_mean_var
 end
+
+function approx_k1d_mean_variance_all_comparisons(results::Dict{Tuple{String, String, String}, Vector{Float64}}, k_means::Dict{Tuple{String, String}, Vector{Float64}})
+    # Initialize the dictionary to store variances
+    all_variances = Dict{Tuple{String, String}, Vector{Float64}}()
+
+    # Iterate over all unique key pairs from the results dictionary
+    for key in keys(results)
+        key_pair = (key[1], key[2])
+        
+        # Check if the variance for this key pair has already been calculated
+        if !haskey(all_variances, key_pair)
+            variance = approx_k1d_mean_variance_chromosome(results, k_means, key_pair)
+            all_variances[key_pair] = variance[key_pair]
+        end
+    end
+
+    return all_variances
+end
+
 
 end # end of module
