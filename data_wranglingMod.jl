@@ -1,6 +1,6 @@
 module DataWrangling
 
-export process_genome_data, merge_dictionaries, process_genome_data_by_chromosome
+export process_genome_data, merge_dictionaries, process_genome_data_by_chromosome, process_genome_data_by_region, process_genome_data_by_chromosome_by_region
 
 using CSV
 using DataFrames
@@ -114,6 +114,141 @@ function process_genome_data_by_chromosome(file_path::String, name_col::String, 
         end
 
         result_dict[name][chrom] = values
+    end
+
+    return result_dict
+end
+
+
+
+function process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::Union{String, Nothing}=nothing, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing)::Dict{String, Dict{Int, Vector{Int64}}}
+    # Read the TSV file into a DataFrame
+    data = CSV.read(file_path, DataFrame; header = 1)
+    result_dict = Dict{String, Dict{Int, Vector{Int64}}}()
+
+    if start_colname !== nothing && end_colname !== nothing
+        # Calculate genoCenter
+        data[!, "Center"] = round.(Int, (data[:, start_colname] .+ data[:, end_colname]) ./ 2)
+        data_col = "Center"
+    elseif start_colname !== nothing
+        # Use start column
+        data_col = start_colname
+    else
+        # Reject attempt
+        println("Invalid function inputs for process_genome_data_by_region")
+        return nothing
+    end
+
+    if chrom_col !== nothing
+        # Group by name and chromosome
+        grouped_data = groupby(data, [name_col, chrom_col])
+        for g in grouped_data
+            name = g[1, name_col]
+            chrom = g[1, chrom_col]
+            values = sort(g[:, data_col])
+
+            # Determine the min and max of the data column
+            min_val = minimum(values)
+            max_val = maximum(values)
+            region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
+
+            # Initialize the nested dictionaries if they don't exist
+            if !haskey(result_dict, "$name:$chrom")
+                result_dict["$name:$chrom"] = Dict{Int, Vector{Int64}}()
+            end
+
+            # Allocate regions
+            for i in 1:num_regions
+                result_dict["$name:$chrom"][i] = Int64[]
+            end
+
+            # Assign values to regions
+            for val in values
+                region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
+                push!(result_dict["$name:$chrom"][region], val)
+            end
+        end
+    else
+        # Group by name only
+        grouped_data = groupby(data, name_col)
+        for g in grouped_data
+            name = g[1, name_col]
+            values = sort(g[:, data_col])
+
+            # Determine the min and max of the data column
+            min_val = minimum(values)
+            max_val = maximum(values)
+            region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
+
+            # Initialize the nested dictionary if it doesn't exist
+            if !haskey(result_dict, name)
+                result_dict[name] = Dict{Int, Vector{Int64}}()
+            end
+
+            # Allocate regions
+            for i in 1:num_regions
+                result_dict[name][i] = Int64[]
+            end
+
+            # Assign values to regions
+            for val in values
+                region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
+                push!(result_dict[name][region], val)
+            end
+        end
+    end
+
+    return result_dict
+end
+
+function process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::String, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}} 
+    # Read the TSV file into a DataFrame
+    data = CSV.read(file_path, DataFrame; header = 1)
+    result_dict = Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}()
+
+    if start_colname !== nothing && end_colname !== nothing
+        # Calculate genoCenter
+        data[!, "Center"] = round.(Int, (data[:, start_colname] .+ data[:, end_colname]) ./ 2)
+        data_col = "Center"
+    elseif start_colname !== nothing
+        # Use start column
+        data_col = start_colname
+    else
+        # Reject attempt
+        println("Invalid function inputs for process_genome_data_by_chromosome_by_region")
+        return nothing
+    end
+
+    # Group by name and chromosome
+    grouped_data = groupby(data, [name_col, chrom_col])
+    for g in grouped_data
+        name = g[1, name_col]
+        chrom = g[1, chrom_col]
+        values = sort(g[:, data_col])
+
+        # Determine the min and max of the data column
+        min_val = minimum(values)
+        max_val = maximum(values)
+        region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
+
+        # Initialize the nested dictionaries if they don't exist
+        if !haskey(result_dict, name)
+            result_dict[name] = Dict{String, Dict{Int, Vector{Int64}}}()
+        end
+        if !haskey(result_dict[name], chrom)
+            result_dict[name][chrom] = Dict{Int, Vector{Int64}}()
+        end
+
+        # Allocate regions
+        for i in 1:num_regions
+            result_dict[name][chrom][i] = Int64[]
+        end
+
+        # Assign values to regions
+        for val in values
+            region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
+            push!(result_dict[name][chrom][region], val)
+        end
     end
 
     return result_dict
