@@ -7,28 +7,28 @@ using DataFrames
 using Statistics
 
 """
-    process_genome_data(file_path::String; cluster_group::Union{String, Nothing}=nothing, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing, percentile::Union{Float64, Nothing}=nothing) -> Dict{String, Vector{Int64}}
+    process_genome_data(file_path::String; cluster_group::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing, percentile::Union{Float64, Nothing}=nothing) -> Dict{String, Vector{Int64}}
 
 Processes genomic data from a TSV file according to various scenarios.
 
 # Arguments
 - `file_path::String`: The path to the TSV file containing the genomic data.
 - `cluster_group::Union{String, Nothing}`: The column name to group by (e.g., 'repFamily').
-- `start_colname::Union{String, Nothing}`: The name of the column indicating the start of an element.
-- `end_colname::Union{String, Nothing}`: The name of the column indicating the end of an element.
+- `start_col::Union{String, Nothing}`: The name of the column indicating the start of an element.
+- `end_col::Union{String, Nothing}`: The name of the column indicating the end of an element.
 - `dict_key::Union{String, Nothing}`: The name to use as the key in the returned dictionary.
 
 # Returns
 - `Dict{String, Vector{Int64}}`: A dictionary where each key is a group name or `dict_key`, and each value is a vector of calculated centers or column values.
 """
-function process_genome_data(file_path::String; cluster_group::Union{String, Nothing}=nothing, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing)::Dict{String, Vector{Int64}}
+function process_genome_data(file_path::String; cluster_group::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing)::Dict{String, Vector{Int64}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
     result_dict = Dict{String, Vector{Int64}}()
 
-    if start_colname !== nothing && end_colname !== nothing
+    if start_col !== nothing && end_col !== nothing
         # Calculate genoCenter
-        data[!, "Center"] = round.(Int, (data[:, start_colname] .+ data[:, end_colname]) ./ 2)
+        data[!, "Center"] = round.(Int, (data[:, start_col] .+ data[:, end_col]) ./ 2)
 
         if cluster_group !== nothing
             # Group the data by cluster_group
@@ -43,7 +43,7 @@ function process_genome_data(file_path::String; cluster_group::Union{String, Not
             key = dict_key === nothing ? "all_data" : dict_key
             result_dict[key] = sort(data[!, "Center"])
         end
-    elseif start_colname !== nothing
+    elseif start_col !== nothing
         # Process data with only start column
 
         if cluster_group !== nothing
@@ -51,13 +51,13 @@ function process_genome_data(file_path::String; cluster_group::Union{String, Not
             grouped_data = groupby(data, cluster_group)
             for g in grouped_data
                 family = g[1, cluster_group]
-                geno_starts = g[:, start_colname]
+                geno_starts = g[:, start_col]
                 result_dict[family] = sort(geno_starts)
             end
         else
             # No grouping, use dict_key or default key
             key = dict_key === nothing ? "all_data" : dict_key
-            result_dict[key] = sort(data[!, start_colname])
+            result_dict[key] = sort(data[!, start_col])
         end
     else
         # Reject attempt
@@ -70,7 +70,7 @@ end
 
 
 """
-    process_genome_data_by_chromosome(file_path::String, name_col::String, chrom_col::String, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing) -> Dict{String, Dict{String, Vector{Int64}}}
+    process_genome_data_by_chromosome(file_path::String, name_col::String, chrom_col::String, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing) -> Dict{String, Dict{String, Vector{Int64}}}
 
 Processes genomic data from a TSV file and organizes it by name and chromosome.
 
@@ -78,42 +78,57 @@ Processes genomic data from a TSV file and organizes it by name and chromosome.
 - `file_path::String`: The path to the TSV file containing the genomic data.
 - `name_col::String`: The column name for the genomic element (e.g., 'repName').
 - `chrom_col::String`: The column name for the chromosome (e.g., 'chrom').
-- `start_colname::Union{String, Nothing}`: The name of the column indicating the start of an element.
-- `end_colname::Union{String, Nothing}`: The name of the column indicating the end of an element.
+- `start_col::Union{String, Nothing}`: The name of the column indicating the start of an element.
+- `end_col::Union{String, Nothing}`: The name of the column indicating the end of an element.
 
 # Returns
 - `Dict{String, Dict{String, Vector{Int64}}}`: A nested dictionary where the first key is the name, and the second key is the chromosome, with each value being a vector of calculated centers or column values.
 """
-function process_genome_data_by_chromosome(file_path::String, name_col::String, chrom_col::String, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Vector{Int64}}}
+function process_genome_data_by_chromosome(file_path::String; name_col::Union{String, Nothing}=nothing, chrom_col::String, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Vector{Int64}}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
     result_dict = Dict{String, Dict{String, Vector{Int64}}}()
 
-    if start_colname !== nothing && end_colname !== nothing
+    if start_col !== nothing && end_col !== nothing
         # Calculate genoCenter
-        data[!, "Center"] = round.(Int, (data[:, start_colname] .+ data[:, end_colname]) ./ 2)
+        data[!, "Center"] = round.(Int, (data[:, start_col] .+ data[:, end_col]) ./ 2)
         data_col = "Center"
-    elseif start_colname !== nothing
+    elseif start_col !== nothing
         # Use start column
-        data_col = start_colname
+        data_col = start_col
     else
         # Reject attempt
         println("Invalid function inputs for process_genome_data_by_chromosome")
         return nothing
     end
 
-    # Group by name and chromosome
-    grouped_data = groupby(data, [name_col, chrom_col])
-    for g in grouped_data
-        name = g[1, name_col]
-        chrom = g[1, chrom_col]
-        values = sort(g[:, data_col])
+    if name_col !== nothing
+        # Group by name and chromosome
+        grouped_data = groupby(data, [name_col, chrom_col])
+        for g in grouped_data
+            name = g[1, name_col]
+            chrom = g[1, chrom_col]
+            values = sort(g[:, data_col])
 
-        if !haskey(result_dict, name)
-            result_dict[name] = Dict{String, Vector{Int64}}()
+            if !haskey(result_dict, name)
+                result_dict[name] = Dict{String, Vector{Int64}}()
+            end
+            result_dict[name][chrom] = values
         end
+    else
+        # Group by chromosome only
+        grouped_data = groupby(data, chrom_col)
+        key = dict_key === nothing ? "all_data" : dict_key
 
-        result_dict[name][chrom] = values
+        for g in grouped_data
+            chrom = g[1, chrom_col]
+            values = sort(g[:, data_col])
+
+            if !haskey(result_dict, key)
+                result_dict[key] = Dict{String, Vector{Int64}}()
+            end
+            result_dict[key][chrom] = values
+        end
     end
 
     return result_dict
@@ -121,18 +136,18 @@ end
 
 
 
-function process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::Union{String, Nothing}=nothing, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing)::Dict{String, Dict{Int, Vector{Int64}}}
+function process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing)::Dict{String, Dict{Int, Vector{Int64}}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
     result_dict = Dict{String, Dict{Int, Vector{Int64}}}()
 
-    if start_colname !== nothing && end_colname !== nothing
+    if start_col !== nothing && end_col !== nothing
         # Calculate genoCenter
-        data[!, "Center"] = round.(Int, (data[:, start_colname] .+ data[:, end_colname]) ./ 2)
+        data[!, "Center"] = round.(Int, (data[:, start_col] .+ data[:, end_col]) ./ 2)
         data_col = "Center"
-    elseif start_colname !== nothing
+    elseif start_col !== nothing
         # Use start column
-        data_col = start_colname
+        data_col = start_col
     else
         # Reject attempt
         println("Invalid function inputs for process_genome_data_by_region")
@@ -201,18 +216,18 @@ function process_genome_data_by_region(file_path::String; name_col::String, num_
     return result_dict
 end
 
-function process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::String, start_colname::Union{String, Nothing}=nothing, end_colname::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}} 
+function process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::String, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}} 
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
     result_dict = Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}()
 
-    if start_colname !== nothing && end_colname !== nothing
+    if start_col !== nothing && end_col !== nothing
         # Calculate genoCenter
-        data[!, "Center"] = round.(Int, (data[:, start_colname] .+ data[:, end_colname]) ./ 2)
+        data[!, "Center"] = round.(Int, (data[:, start_col] .+ data[:, end_col]) ./ 2)
         data_col = "Center"
-    elseif start_colname !== nothing
+    elseif start_col !== nothing
         # Use start column
-        data_col = start_colname
+        data_col = start_col
     else
         # Reject attempt
         println("Invalid function inputs for process_genome_data_by_chromosome_by_region")
@@ -297,5 +312,47 @@ function merge_dictionaries(dicts::Vector{Dict{String, Vector{Int64}}})::Dict{St
 
     return merged_dict
 end
+
+
+using DataFrames
+
+function merge_dictionaries(dicts::Vector{Dict{String, Dict{String, Vector{Int64}}}})::Dict{String, Dict{String, Vector{Int64}}}
+    merged_dict = Dict{String, Dict{String, Vector{Int64}}}()
+    duplicate_info = DataFrame(Name=String[], NewName=String[], Dictionary=String[])
+    key_counts = Dict{String, Int}()
+
+    for (i, dict) in enumerate(dicts)
+        for (outer_key, inner_dict) in dict
+            new_outer_key = outer_key
+            if haskey(key_counts, outer_key)
+                key_counts[outer_key] += 1
+                new_outer_key = "$(outer_key)_duplicate_$(key_counts[outer_key])"
+                push!(duplicate_info, (Name=outer_key, NewName=new_outer_key, Dictionary="dict$i"))
+            else
+                key_counts[outer_key] = 0
+            end
+
+            if !haskey(merged_dict, new_outer_key)
+                merged_dict[new_outer_key] = Dict{String, Vector{Int64}}()
+            end
+
+            for (inner_key, value) in inner_dict
+                if haskey(merged_dict[new_outer_key], inner_key)
+                    append!(merged_dict[new_outer_key][inner_key], value)
+                else
+                    merged_dict[new_outer_key][inner_key] = copy(value)
+                end
+            end
+        end
+    end
+
+    if nrow(duplicate_info) > 0
+        println("Duplicate Keys Summary:")
+        println(duplicate_info)
+    end
+
+    return merged_dict
+end
+
 
 end # end of module
