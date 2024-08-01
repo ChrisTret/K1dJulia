@@ -15,7 +15,7 @@ Plots both the observed K̂ and the theoretical K under CSR against T
 -`T::Vector{Int64}`: Vector of t values searched over
 -`confidence_bounds::Matrix{Float64}`: A matrix where the first column is the lower confidence bound and the second column the uppoer confidence bound
 """
-function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64},confidence_bounds::Matrix{Float64} = nothing)
+function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64},confidence_bounds::Union{Matrix{Float64}, Nothing} = nothing)
     K̂ = K_dict[keys]
     key1, key2 = keys
     
@@ -30,7 +30,6 @@ function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
     plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "K(t)")
     plot!(T, K̂, color = :red, label = "Observed")
     
-
     if confidence_bounds !== nothing
         # Check if confidence_bounds contains just variances
         if size(confidence_bounds,2) == 1
@@ -42,36 +41,19 @@ function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
             plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Normal Based 95% Confidence Intervals")
             plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
         elseif size(confidence_bounds,2) == 2
-             # Use Monte Carlo Empirical Confidence Bounds
-             lower_bound = confidence_bounds[:,1]
-             upper_bound = confidence_bounds[:,2]
- 
-             # Plot confidence intervals
-             plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
-             plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+                # Use Monte Carlo Empirical Confidence Bounds
+                lower_bound = confidence_bounds[:,1]
+                upper_bound = confidence_bounds[:,2]
+
+                # Plot confidence intervals
+                plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
+                plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
         end
     end
 
     display(current())
 end
 
-
-function k_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64})
-    K̂ = K_dict[keys]
-    key1, key2 = keys
-    
-    # E(K̂) under CSR
-    theoretical = 2 * T
-    
-    # Generate title based on keys
-    title = "Observed vs Theoretical K: $key1 - $key2"
-    
-    # Plot theoretical and observed K values
-    plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "K(t)")
-    plot!(T, K̂, color = :red, label = "Observed")
-    
-    display(current())
-end
 
 """
     l_plot
@@ -83,8 +65,6 @@ Plots both the observed L - T = K̂/2 - T and the theoretical L - T under CSR ag
 `keys::Tuple{String, String}`: Tuple of keys to access the data
 `T::Vector{Int64}`: Vector of t values searched over
 -`confidence_bounds::Matrix{Float64}`: A matrix where the first column is the lower confidence bound and the second column the uppoer confidence bound
-
-
 """
 function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tuple{String, String}, T::Vector{Int64},confidence_bounds::Matrix{Float64} = nothing)
     L̂ = (K_dict[keys] ./ 2 .- T)
@@ -115,17 +95,28 @@ function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
 end
 
 
-function z_plot(z_values::Vector{Float64}, T::Vector{Int64})
+
+function z_plot(z_dict::Dict{Tuple{String, String}, NamedTuple}, keys::Tuple{String, String}, T::Vector{Int64})
+    z_values = z_dict[keys].z_stats
+    key1, key2 = keys
+    
     # Create the plot
-    plot(T, z_values, label="Z values", xlabel="t", ylabel="Z(t)", title="Z vs T",
+    plot(T, z_values, label="Z values", xlabel="t", ylabel="Z(t)", title="Z-scores: $key1 - $key2",
          lw=2, linecolor=:red)
     
     # Add the zero line
     plot!(T, 0 * T, linestyle = :dash, color = :blue, label = "")
+    
+    # Find the index of the maximum value of z_values
+    max_index = argmax(abs.(z_values))
+    
+    # Add a gold dot at the maximum value with a label
+    scatter!([T[max_index]], [z_values[max_index]], color=:gold, marker=:circle, label="Most significant distance (t = $(T[max_index]))")
 
     # Display the plot
     display(current())
 end
+
 
 
 """
