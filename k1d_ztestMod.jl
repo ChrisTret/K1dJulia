@@ -2,7 +2,7 @@ module K1dZTests
 
 using Distributions, Printf
 
-export z_test, z_tests_all_comparisons, print_z_summary
+export z_test, z_tests_all_comparisons, print_z_summary, z_proportions, top_n_means
 
 
 function z_to_p(z_score::Float64)::Float64
@@ -48,9 +48,13 @@ function z_test(results::Dict{Tuple{String, String}, Vector{Float64}}, T::Vector
     clustering_distances = T[clustering]
     dispersion_distances = T[dispersion]
     significant_distances = T[significant]
+
+    proportion_above_threshold = mean(abs.(z_obs) .> z_test)
+
     
     summary = (
         key_pair = key_pair,
+        z_scores = z_obs,
         most_sig_distance = most_sig_distance,
         most_sig_distance_z = most_sig_distance_z,
         top_distances = top_distances,
@@ -59,7 +63,7 @@ function z_test(results::Dict{Tuple{String, String}, Vector{Float64}}, T::Vector
         clustering_distances = clustering_distances,
         dispersion_distances = dispersion_distances,
         significant_distances = significant_distances,
-        z_obs = z_obs
+        proportion_above_threshold = proportion_above_threshold
     )
     
     return summary
@@ -121,7 +125,7 @@ function print_z_summary(summary::NamedTuple)
         println("Associated Z-score: None")
     end
 
-    if !isempty(summary.top_z_scores) && !isempty(summary.top_p_vals)
+    if summary.top_z_scores !== nothing && summary.top_p_vals !== nothing
         println("\nTop Z-scores:")
         println(@sprintf("%-10s %-10s %-10s", "Distance", "Z-score", "P-value"))
         for (distance, z_score, p_value) in zip(summary.top_distances, summary.top_z_scores, summary.top_p_vals)
@@ -130,14 +134,14 @@ function print_z_summary(summary::NamedTuple)
         end
     end
     println("\nClustering Distances:")
-    if !isempty(summary.clustering_distances)
+    if summary.clustering_distances !== nothing
         println(join([@sprintf("%5d", d) for d in summary.clustering_distances], " "))
     else
         println("None")
     end
 
     println("\nDispersion Distances:")
-    if !isempty(summary.dispersion_distances)
+    if summary.dispersion_distances !== nothing
         println(join([@sprintf("%5d", d) for d in summary.dispersion_distances], " "))
     else
         println("None")
@@ -151,9 +155,61 @@ function print_z_summary(summary::NamedTuple)
     # end
 
     println("\nZ-Statistics:")
-    println(join([format_z_score(z) for z in summary.z_obs], " "))
+    println(join([format_z_score(z) for z in summary.z_scores], " "))
     
     println("\n")
+end
+
+
+function z_proportions(summaries::Dict{Tuple{String, String}, NamedTuple}, n::Int=10)
+    # Create a vector to hold (key, proportion) tuples
+    proportions = [(key, summaries[key].proportion_above_threshold) for key in keys(summaries)]
+    
+    # Sort the vector by proportions in descending order
+    sorted_proportions = sort(proportions, by = x -> x[2], rev = true)
+
+    # Get the top n key pairs and their proportions
+    top_n_keys_and_proportions = first(sorted_proportions, n)
+
+    # Print the result in the desired format
+    println("Pairs with largest significance proportions")
+    println(@sprintf("%-15s\t%-50s", "Sig. Proportion", "Pairs"))
+    println("=" ^ 65)
+    for (pair, proportion) in top_n_keys_and_proportions
+        println(@sprintf("%-15.4f\t%-50s", proportion, pair))
+    end
+
+    return top_n_keys_and_proportions
+end
+function top_n_means(z_scores_dict::Dict{Tuple{String, String}, NamedTuple}, n::Int=10)
+    # Create a vector to hold (key, mean_z) tuples
+    mean_z_scores = [(key, mean(value.z_scores)) for (key, value) in z_scores_dict]
+    
+    # Sort the vector by mean Z-scores in descending order
+    sorted_means = sort(mean_z_scores, by = x -> x[2], rev = true)
+
+    # Get the top n key pairs and their mean Z-scores
+    top_n_keys_and_means = first(sorted_means, n)
+
+    # Get the bottom n key pairs and their mean Z-scores
+    bottom_n_keys_and_means = last(sorted_means, n)
+
+    # Print the result in the desired format
+    println("Pairs with largest mean Z-scores")
+    println(@sprintf("%-15s\t%-50s", "Mean Z-score", "Pairs"))
+    println("=" ^ 65)
+    for (pair, mean_z) in top_n_keys_and_means
+        println(@sprintf("%-15.4f\t%-50s", mean_z, pair))
+    end
+
+    println("\nPairs with smallest mean Z-scores")
+    println(@sprintf("%-15s\t%-50s", "Mean Z-score", "Pairs"))
+    println("=" ^ 65)
+    for (pair, mean_z) in bottom_n_keys_and_means
+        println(@sprintf("%-15.4f\t%-50s", mean_z, pair))
+    end
+
+    return (top_n_keys_and_means, bottom_n_keys_and_means)
 end
 
 end # end of module

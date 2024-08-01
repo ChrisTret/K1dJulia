@@ -20,6 +20,6 @@ export k_plot, l_plot, z_plot, plot_top_n, plot_by_key, plot_pair
 export bootstrap_variance_k1d, bootstrap_variance_k1d_all_comparisons, approx_k1d_mean_variance_chromosome, approx_k1d_mean_variance_all_comparisons
 export max_percent_increase
 export monte_carlo_sim, monte_carlo_test, extract_mcecb
-export z_test, z_tests_all_comparisons, print_z_summary
+export z_test, z_tests_all_comparisons, print_z_summary, z_proportions, top_n_means
 
 end # end of module
