@@ -74,21 +74,32 @@ function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
     theoretical = 0 * T
     
     # Generate title based on keys
-    title = "Observed vs Theoretical L(t) - t: $key1 - $key2"
+    title = "Observed vs Theoretical: $key1 - $key2"
     
     # Plot theoretical and observed L values
-    plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "L(t)")
+    plot(T, theoretical, color = :blue, label = "Theoretical", title = title, xlabel = "Distance (t)", ylabel = "L(t) - t")
     plot!(T, L̂, color = :red, label = "Observed")
     
 
     if confidence_bounds !== nothing
-        # Compute confidence intervals
-        lower_bound = confidence_bounds[:,1]
-        upper_bound = confidence_bounds[:,2]
-    
-        # Plot confidence intervals
-        plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
-        plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+        # Check if confidence_bounds contains just variances
+        if size(confidence_bounds,2) == 1
+            # Create nomral based 95% confidence intervals
+            lower_bound = L̂ - 1.96.*sqrt.(confidence_bounds[:,1])
+            upper_bound = L̂ + 1.96.*sqrt.(confidence_bounds[:,1])
+
+            # Plot confidence intervals
+            plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Normal Based 95% Confidence Intervals")
+            plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+        elseif size(confidence_bounds,2) == 2
+                # Use Monte Carlo Empirical Confidence Bounds
+                lower_bound = confidence_bounds[:,1]
+                upper_bound = confidence_bounds[:,2]
+
+                # Plot confidence intervals
+                plot!(T, lower_bound, color = :green, linestyle = :dash, label = "Monte Carlo Empirical Confidence Bounds")
+                plot!(T, upper_bound, color = :green, linestyle = :dash, label = "")
+        end
     end
     
     display(current())
@@ -97,7 +108,7 @@ end
 
 
 function z_plot(z_dict::Dict{Tuple{String, String}, NamedTuple}, keys::Tuple{String, String}, T::Vector{Int64})
-    z_values = z_dict[keys].z_stats
+    z_values = z_dict[keys].z_scores
     key1, key2 = keys
     
     # Create the plot
