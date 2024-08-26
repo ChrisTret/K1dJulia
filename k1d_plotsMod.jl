@@ -106,7 +106,19 @@ function l_plot(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, keys::Tupl
 end
 
 
+"""
+    z_plot(z_dict::Dict{Tuple{String, String}, NamedTuple}, keys::Tuple{String, String}, T::Vector{Int64})
 
+Plots the z-scores over time for a given pair of elements based on the provided z-scores dictionary.
+
+# Arguments
+- `z_dict::Dict{Tuple{String, String}, NamedTuple}`: A dictionary where each key is a tuple of two element names, and each value is a `NamedTuple` containing z-scores and other statistics.
+- `keys::Tuple{String, String}`: A tuple containing two element names used to index into `z_dict` to extract z-scores for plotting.
+- `T::Vector{Int64}`: A vector of integer values representing the time points or distances at which the z-scores are evaluated.
+
+# Returns
+- `Nothing`: This function displays a plot of z-scores and does not return any value.
+"""
 function z_plot(z_dict::Dict{Tuple{String, String}, NamedTuple}, keys::Tuple{String, String}, T::Vector{Int64})
     z_values = z_dict[keys].z_scores
     key1, key2 = keys
@@ -127,7 +139,6 @@ function z_plot(z_dict::Dict{Tuple{String, String}, NamedTuple}, keys::Tuple{Str
     # Display the plot
     display(current())
 end
-
 
 
 """
@@ -186,6 +197,7 @@ function plot_by_key(K_dict::Dict{Tuple{String, String}, Vector{Float64}}, T::Ve
         end
     end
 end
+
 
 """
     plot_pair

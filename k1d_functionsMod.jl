@@ -60,6 +60,7 @@ function k1d_univ(X::Vector{Int64}, T::Vector{Int64})
     return K_hat
 end
 
+
 """
     check_range_univ(X::Vector{Int64}, a::Int64, start::Int64, t::Int64, direction::Symbol)
 
@@ -92,6 +93,7 @@ function check_range_univ(X::Vector{Int64}, a::Int64, start::Int64, t::Int64, di
     end
     return (my_sum = my_sum, next_start = next_start)
 end
+
 
 """
     k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
@@ -130,6 +132,7 @@ function k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
     
     return K_hat
 end
+
 
 """
     check_range_biv(X::Vector{Int64}, Y::Vector{Int64}, a::Int64, j::Int64, t::Int64)
@@ -201,6 +204,24 @@ function k1d_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64}
 return results
 end
 
+
+"""
+    k1d_all_comparisons(data::Dict{String, Dict{Int, Vector{Int64}}}, T::Vector{Int64}) 
+    -> Dict{Tuple{String, String, Int}, Vector{Float64}}
+
+Computes k1d statistics for all pairs of outer and inner keys in the provided data dictionary, producing either univariate or bivariate results based on the keys.
+
+# Arguments
+- `data::Dict{String, Dict{Int, Vector{Int64}}}`: A dictionary where each outer key maps to another dictionary. The inner dictionary maps integer keys (representing regions or categories) to vectors of integer values.
+- `T::Vector{Int64}`: A vector of integer values representing the points at which the k1d statistics will be computed.
+
+# Returns
+- `Dict{Tuple{String, String, Int}, Vector{Float64}}`: A dictionary where each key is a tuple containing two outer keys and an inner key from the `data` dictionary, and each value is a vector of computed k1d statistics.
+
+# Notes
+- For each pair of outer keys (`key1`, `key2`), the function computes either univariate (`k1d_univ`) or bivariate (`k1d_biv`) statistics for matching inner keys. If both vectors are empty, the result for that key pair is a vector of zeros.
+- Univariate statistics (`k1d_univ`) are computed if `key1` and `key2` are the same; otherwise, bivariate statistics (`k1d_biv`) are computed.
+"""
 function k1d_all_comparisons(data::Dict{String, Dict{Int, Vector{Int64}}}, T::Vector{Int64})::Dict{Tuple{String, String, Int}, Vector{Float64}}
     # Initialize the results dictionary
     results = Dict{Tuple{String, String, Int}, Vector{Float64}}()
@@ -244,7 +265,23 @@ function k1d_all_comparisons(data::Dict{String, Dict{Int, Vector{Int64}}}, T::Ve
 end
 
 
+"""
+    k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T::Vector{Int64}) 
+    -> Dict{Tuple{String, String, String}, Vector{Float64}}
 
+Computes k1d statistics for all pairs of outer keys and matching inner keys in the provided data dictionary. The function produces either univariate or bivariate results based on the keys.
+
+# Arguments
+- `data::Dict{String, Dict{String, Vector{Int64}}}`: A dictionary where each outer key maps to another dictionary. The inner dictionary maps string keys (representing chromosomes or categories) to vectors of integer values.
+- `T::Vector{Int64}`: A vector of integer values representing the points at which the k1d statistics will be computed.
+
+# Returns
+- `Dict{Tuple{String, String, String}, Vector{Float64}}`: A dictionary where each key is a tuple containing two outer keys and an inner key (chromosome) from the `data` dictionary, and each value is a vector of computed k1d statistics.
+
+# Notes
+- For each pair of outer keys (`key1`, `key2`), the function computes either univariate (`k1d_univ`) or bivariate (`k1d_biv`) statistics for matching inner keys. 
+- Univariate statistics (`k1d_univ`) are computed if `key1` and `key2` are the same; otherwise, bivariate statistics (`k1d_biv`) are computed.
+"""
 function k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T::Vector{Int64})::Dict{Tuple{String, String, String}, Vector{Float64}}
     results = Dict{Tuple{String, String, String}, Vector{Float64}}()
     outer_keys = keys(data)
@@ -276,6 +313,19 @@ function k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T:
 end
 
 
+"""
+    k1d_all_comparisons(data::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}, T::Vector{Int64}) 
+    -> Dict{Tuple{String, String, String, Int}, Vector{Float64}}
+
+Computes k1d statistics for all pairs of outer keys, matching inner keys, and region identifiers in the provided data dictionary. The function produces either univariate or bivariate results based on the keys.
+
+# Arguments
+- `data::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}`: A nested dictionary where each outer key maps to another dictionary, which further maps string keys (representing chromosomes) to yet another dictionary. The innermost dictionary maps integer region identifiers to vectors of integer values.
+- `T::Vector{Int64}`: A vector of integer values representing the points at which the k1d statistics will be computed.
+
+# Returns
+- `Dict{Tuple{String, String, String, Int}, Vector{Float64}}`: A dictionary where each key is a tuple containing two outer keys, a chromosome, and a region identifier, and each value is a vector of computed k1d statistics.
+"""
 function k1d_all_comparisons(data::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}, T::Vector{Int64})::Dict{Tuple{String, String, String, Int}, Vector{Float64}}
     results = Dict{Tuple{String, String, String, Int}, Vector{Float64}}()
     outer_keys = keys(data)
@@ -318,6 +368,18 @@ function k1d_all_comparisons(data::Dict{String, Dict{String, Dict{Int, Vector{In
 end
 
 
+"""
+    k1d_mean_across_chromosomes(k1d_results::Dict{Tuple{String, String, String}, Vector{Float64}})
+    -> Dict{Tuple{String, String}, Vector{Float64}}
+
+Calculates the mean of k1d statistics across different chromosomes for each pair of element names.
+
+# Arguments
+- `k1d_results::Dict{Tuple{String, String, String}, Vector{Float64}}`: A dictionary where each key is a tuple containing two element names and a chromosome identifier, and each value is a vector of k1d statistics corresponding to that key.
+
+# Returns
+- `Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary where each key is a tuple containing two element names, and each value is a vector representing the mean k1d statistics across all chromosomes for that pair of element names.
+"""
 function k1d_mean_across_chromosomes(k1d_results::Dict{Tuple{String, String, String}, Vector{Float64}})::Dict{Tuple{String, String}, Vector{Float64}}
     # Initialize the dictionary to store mean values
     mean_results = Dict{Tuple{String, String}, Vector{Float64}}()
@@ -349,6 +411,19 @@ function k1d_mean_across_chromosomes(k1d_results::Dict{Tuple{String, String, Str
     return mean_results
 end
 
+
+"""
+    k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, String, Int}, Vector{Float64}})
+    -> Dict{Tuple{String, String}, Vector{Float64}}
+
+Calculates the mean of k1d statistics across different chromosomes and regions for each pair of element names.
+
+# Arguments
+- `k1d_results::Dict{Tuple{String, String, String, Int}, Vector{Float64}}`: A dictionary where each key is a tuple containing two element names, a chromosome identifier, and a region identifier, and each value is a vector of k1d statistics corresponding to that key.
+
+# Returns
+- `Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary where each key is a tuple containing two element names, and each value is a vector representing the mean k1d statistics across all chromosomes and regions for that pair of element names.
+"""
 function k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, String, Int}, Vector{Float64}})::Dict{Tuple{String, String}, Vector{Float64}}
     # Initialize the dictionary to store mean values
     mean_results = Dict{Tuple{String, String}, Vector{Float64}}()
@@ -381,6 +456,18 @@ function k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, String,
 end
 
 
+"""
+    k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, Int}, Vector{Float64}})
+    -> Dict{Tuple{String, String}, Vector{Float64}}
+
+Calculates the mean of k1d statistics across different regions for each pair of element names.
+
+# Arguments
+- `k1d_results::Dict{Tuple{String, String, Int}, Vector{Float64}}`: A dictionary where each key is a tuple containing two element names and a region identifier, and each value is a vector of k1d statistics corresponding to that key.
+
+# Returns
+- `Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary where each key is a tuple containing two element names, and each value is a vector representing the mean k1d statistics across all regions for that pair of element names.
+"""
 function k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, Int}, Vector{Float64}})::Dict{Tuple{String, String}, Vector{Float64}}
     # Initialize the dictionary to store mean values
     mean_results = Dict{Tuple{String, String}, Vector{Float64}}()
@@ -411,7 +498,5 @@ function k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, Int}, V
     
     return mean_results
 end
-
-
 
 end # end of module

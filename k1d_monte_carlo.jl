@@ -6,7 +6,22 @@ using .K1dFun, Distributions
 
 export monte_carlo_sim, monte_carlo_test, extract_mcecb
 
-function monte_carlo_sim(data::Dict{String,Vector{Int64}}, keys::Tuple{String, String}, T::Vector{Int64}, m::Int64 = 1000)
+"""
+    monte_carlo_sim(data::Dict{String, Vector{Int64}}, keys::Tuple{String, String}, 
+                    T::Vector{Int64}, m::Int64 = 1000) -> Matrix{Float64}
+
+Performs a Monte Carlo simulation to generate random samples and compute univariate or bivariate statistics based on the provided data. The simulation can be used to assess the statistical properties of observed data by comparing it to randomly generated samples.
+
+# Arguments
+- `data::Dict{String, Vector{Int64}}`: A dictionary where each key is a string representing a dataset, and each value is a vector of integer data points.
+- `keys::Tuple{String, String}`: A tuple containing two keys that specify which datasets in `data` to use for the simulation.
+- `T::Vector{Int64}`: A vector of integer values representing the points at which the statistics will be computed.
+- `m::Int64 = 1000`: The number of Monte Carlo iterations to perform (default is 1000).
+
+# Returns
+- `Matrix{Float64}`: A matrix where each column represents the results of one Monte Carlo simulation iteration. The number of rows corresponds to the length of `T`.
+"""
+function monte_carlo_sim(data::Dict{String, Vector{Int64}}, keys::Tuple{String, String}, T::Vector{Int64}, m::Int64 = 1000)
     key1 = keys[1]
     key2 = keys[2]
     X = data[key1]
@@ -18,7 +33,7 @@ function monte_carlo_sim(data::Dict{String,Vector{Int64}}, keys::Tuple{String, S
         lambda_hat = N / (X[N] - X[1] + 1)
         mc_results[:,1] = k1d_univ(X,T)
         for i in 2:m
-            mc_sample = round.(Int, cumsum(rand(Exponential(1/lambda_hat), N)))
+            mc_sample = round.(Int, cumsum(rand(Exponential(lambda_hat), N)))
             mc_results[:,i] = k1d_univ(mc_sample, T)
         end
     else
@@ -37,6 +52,19 @@ function monte_carlo_sim(data::Dict{String,Vector{Int64}}, keys::Tuple{String, S
     return mc_results
 end
 
+
+"""
+    extract_mcecb(sim_vals::Matrix{Float64}, alpha::Float64 = 0.05) -> Matrix{Float64}
+
+Calculates the Monte Carlo error confidence bounds (MCECB) for each row of the simulation values matrix.
+
+# Arguments
+- `sim_vals::Matrix{Float64}`: A matrix of simulation values where each row represents a different simulation scenario and each column (except the first) represents a different simulation iteration.
+- `alpha::Float64 = 0.05`: The significance level used to calculate the lower and upper percentiles for the confidence bounds (default is 0.05).
+
+# Returns
+- `Matrix{Float64}`: A matrix with two columns where the first column contains the lower percentiles and the second column contains the upper percentiles for each row of the input matrix.
+"""
 function extract_mcecb(sim_vals::Matrix{Float64}, alpha::Float64 = 0.05)
     # Get the number of rows and columns
     num_rows = size(sim_vals, 1)
@@ -61,6 +89,19 @@ function extract_mcecb(sim_vals::Matrix{Float64}, alpha::Float64 = 0.05)
     return mcecb
 end
 
+
+"""
+    monte_carlo_test(sim_vals::Matrix{Float64}, alpha::Float64 = 0.05) -> Vector{Int}
+
+Performs a Monte Carlo test to identify rows in the simulation values matrix where the first column value falls outside the specified confidence bounds.
+
+# Arguments
+- `sim_vals::Matrix{Float64}`: A matrix of simulation values where each row represents a different simulation scenario. The first column contains observed values, and the remaining columns contain simulation results.
+- `alpha::Float64 = 0.05`: The significance level used to calculate the lower and upper percentiles for determining the confidence bounds (default is 0.05).
+
+# Returns
+- `Vector{Int}`: A vector of row indices where the observed value (first column) is outside the calculated confidence bounds based on the simulation results.
+"""
 function monte_carlo_test(sim_vals::Matrix{Float64}, alpha::Float64 = 0.05)
     # Get the number of rows
     num_rows = size(sim_vals, 1)
@@ -88,5 +129,6 @@ function monte_carlo_test(sim_vals::Matrix{Float64}, alpha::Float64 = 0.05)
 
     return significant_rows
 end
+
 
 end # end of module

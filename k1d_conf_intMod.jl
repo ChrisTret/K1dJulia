@@ -48,6 +48,7 @@ function bootstrap_variance_k1d(Data::Dict{String, Vector{Int64}}, keys::Tuple{S
     return bootstrap_results
 end
 
+
 """
     bootstrap_variance_k1d_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64}, n::Int, B::Int) -> Dict{Tuple{String, String}, Vector{Float64}}
 
@@ -76,7 +77,21 @@ function bootstrap_variance_k1d_all_comparisons(Data::Dict{String, Vector{Int64}
 end
 
 
+"""
+    approx_k1d_mean_variance_chromosome(results::Dict{Tuple{String, String, String}, Vector{Float64}}, 
+                                        k_means::Dict{Tuple{String, String}, Vector{Float64}}, 
+                                        key_pair::Tuple{String, String}) -> Dict{Tuple{String, String}, Vector{Float64}}
 
+Calculates the approximate variance of the k1d mean for a specific key pair across different chromosomes based on provided results.
+
+# Arguments
+- `results::Dict{Tuple{String, String, String}, Vector{Float64}}`: A dictionary where each key is a tuple containing three strings (e.g., representing group, chromosome, and some identifier), and each value is a vector of float results.
+- `k_means::Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary where each key is a tuple of two strings (e.g., representing group and another identifier), and each value is a vector representing the mean values of k1d.
+- `key_pair::Tuple{String, String}`: A tuple containing two strings to specify which group and identifier in `k_means` to use for calculating variance.
+
+# Returns
+- `Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary where the key is the provided `key_pair` and the value is a vector of variances for the k1d mean.
+"""
 function approx_k1d_mean_variance_chromosome(results::Dict{Tuple{String, String, String}, Vector{Float64}}, k_means::Dict{Tuple{String, String}, Vector{Float64}}, key_pair::Tuple{String, String})
     len_T = length(k_means[key_pair])
     k_mean = k_means[key_pair]
@@ -101,6 +116,21 @@ function approx_k1d_mean_variance_chromosome(results::Dict{Tuple{String, String,
     return k_mean_var
 end
 
+
+"""
+    approx_k1d_mean_variance_all_comparisons(results::Dict{Tuple{String, String, String}, Vector{Float64}}, 
+                                             k_means::Dict{Tuple{String, String}, Vector{Float64}}) 
+                                             -> Dict{Tuple{String, String}, Vector{Float64}}
+
+Calculates the approximate variance of the k1d mean for all unique key pairs across different chromosomes based on the provided results.
+
+# Arguments
+- `results::Dict{Tuple{String, String, String}, Vector{Float64}}`: A dictionary where each key is a tuple containing three strings (e.g., representing group, chromosome, and some identifier), and each value is a vector of float results.
+- `k_means::Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary where each key is a tuple of two strings (e.g., representing group and another identifier), and each value is a vector representing the mean values of k1d.
+
+# Returns
+- `Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary where each key is a tuple of two strings (representing a group and identifier) and each value is a vector of variances for the k1d mean calculated for that key pair.
+"""
 function approx_k1d_mean_variance_all_comparisons(results::Dict{Tuple{String, String, String}, Vector{Float64}}, k_means::Dict{Tuple{String, String}, Vector{Float64}})
     # Initialize the dictionary to store variances
     all_variances = Dict{Tuple{String, String}, Vector{Float64}}()
@@ -118,6 +148,5 @@ function approx_k1d_mean_variance_all_comparisons(results::Dict{Tuple{String, St
 
     return all_variances
 end
-
 
 end # end of module
