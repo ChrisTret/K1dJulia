@@ -2,9 +2,7 @@ module DataWrangling
 
 export process_genome_data, merge_dictionaries, process_genome_data_by_chromosome, process_genome_data_by_region, process_genome_data_by_chromosome_by_region
 
-using CSV
-using DataFrames
-using Statistics
+using CSV, DataFrames, Statistics
 
 """
     process_genome_data(file_path::String; cluster_group::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing, percentile::Union{Float64, Nothing}=nothing) -> Dict{String, Vector{Int64}}
@@ -135,7 +133,26 @@ function process_genome_data_by_chromosome(file_path::String; name_col::Union{St
 end
 
 
+"""
+    process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, 
+                                  chrom_col::Union{String, Nothing}=nothing, 
+                                  start_col::Union{String, Nothing}=nothing, 
+                                  end_col::Union{String, Nothing}=nothing) 
+                                  -> Dict{String, Dict{Int, Vector{Int64}}}
 
+Processes genomic data by dividing each group (defined by the provided columns) into a specified number of regions based on genomic coordinates. 
+
+# Arguments
+- `file_path::String`: The path to the TSV file containing genomic data.
+- `name_col::String`: The column name in the TSV file that contains group names (e.g., gene names).
+- `num_regions::Int`: The number of regions into which to divide the genomic data for each group.
+- `chrom_col::Union{String, Nothing}=nothing`: The column name for chromosome identifiers. If provided, data will be grouped by both the `name_col` and `chrom_col`.
+- `start_col::Union{String, Nothing}=nothing`: The column name for the start position of genomic features. Must be provided if `end_col` is also specified.
+- `end_col::Union{String, Nothing}=nothing`: The column name for the end position of genomic features. Must be provided if `start_col` is also specified.
+
+# Returns
+- `Dict{String, Dict{Int, Vector{Int64}}}`: A nested dictionary where each key is a group identifier (potentially including chromosome identifiers), and each value is another dictionary that maps region indices to vectors of genomic positions.
+"""
 function process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing)::Dict{String, Dict{Int, Vector{Int64}}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
@@ -216,6 +233,28 @@ function process_genome_data_by_region(file_path::String; name_col::String, num_
     return result_dict
 end
 
+
+"""
+    process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, 
+                                                num_regions::Int, chrom_col::String, 
+                                                start_col::Union{String, Nothing}=nothing, 
+                                                end_col::Union{String, Nothing}=nothing) 
+                                                -> Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}
+
+Processes genomic data by dividing each group, defined by the provided columns, into a specified number of regions for each chromosome based on genomic coordinates.
+
+# Arguments
+- `file_path::String`: The path to the TSV file containing genomic data.
+- `name_col::String`: The column name in the TSV file that contains group names (e.g., gene names).
+- `num_regions::Int`: The number of regions into which to divide the genomic data for each group and chromosome.
+- `chrom_col::String`: The column name for chromosome identifiers. Data will be grouped by both the `name_col` and `chrom_col`.
+- `start_col::Union{String, Nothing}=nothing`: The column name for the start position of genomic features. Must be provided if `end_col` is also specified.
+- `end_col::Union{String, Nothing}=nothing`: The column name for the end position of genomic features. Must be provided if `start_col` is also specified.
+
+# Returns
+- `Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}`: A nested dictionary where each key is a group identifier, each sub-key is a chromosome identifier, and each sub-sub-key is a region index mapped to a vector of genomic positions.
+
+"""
 function process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::String, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}} 
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
@@ -270,6 +309,7 @@ function process_genome_data_by_chromosome_by_region(file_path::String; name_col
 end
 
 
+
 """
     merge_dictionaries(dicts::Vector{Dict{String, Vector{Int64}}}) -> Dict{String, Vector{Int64}}
 
@@ -314,8 +354,23 @@ function merge_dictionaries(dicts::Vector{Dict{String, Vector{Int64}}})::Dict{St
 end
 
 
-using DataFrames
+"""
+    merge_dictionaries(dicts::Vector{Dict{String, Dict{String, Vector{Int64}}}}) 
+    -> Dict{String, Dict{String, Vector{Int64}}}
 
+Merges a vector of dictionaries into a single dictionary, handling duplicate keys by renaming them and concatenating their values.
+
+# Arguments
+- `dicts::Vector{Dict{String, Dict{String, Vector{Int64}}}}`: A vector of dictionaries to be merged. Each dictionary has an outer key that maps to another dictionary, which in turn maps to vectors of `Int64` values.
+
+# Returns
+- `Dict{String, Dict{String, Vector{Int64}}}`: A single merged dictionary. If duplicate outer keys are found across dictionaries, they are renamed with a suffix `_duplicate_n` where `n` indicates the occurrence count of the duplicate key.
+
+# Behavior
+- If an outer key appears in more than one dictionary, it is renamed to avoid key collisions.
+- Values from duplicate keys are concatenated.
+- A summary of renamed keys due to duplication is printed if any duplicates are found.
+"""
 function merge_dictionaries(dicts::Vector{Dict{String, Dict{String, Vector{Int64}}}})::Dict{String, Dict{String, Vector{Int64}}}
     merged_dict = Dict{String, Dict{String, Vector{Int64}}}()
     duplicate_info = DataFrame(Name=String[], NewName=String[], Dictionary=String[])
@@ -353,6 +408,5 @@ function merge_dictionaries(dicts::Vector{Dict{String, Dict{String, Vector{Int64
 
     return merged_dict
 end
-
 
 end # end of module
