@@ -19,40 +19,35 @@ Estimate Ripley's K function for a univariate point pattern of integer values.
 function k1d_univ(X::Vector{Int64}, T::Vector{Int64})
     N = length(X)
     
-    lambda_hat = N / (X[end] - X[1] + 1)
+    lambda_hat = N / (X[N] - X[1] + 1)
     obs_sum = zeros(Int, length(T))
     K_hat = zeros(Float64, length(T))
 
-    down_cum = zeros(Int, length(T))
-    up_cum = zeros(Int, length(T))
     curr_sum = zeros(Int, length(T))
     
-    @threads for a in 1:N
+    for a in 1:N
         fill!(curr_sum,0)
         down_next_start = 1
         up_next_start = 1
 
         for t_idx in 1:length(T)
             t = T[t_idx]
-            down_result = check_range_univ(X, a, down_next_start, t, :down)
-            up_result = check_range_univ(X, a, up_next_start, t, :up)
-            
-            # Update cumulative sums for the current t
-            down_cum[t_idx] = down_result.my_sum
-            up_cum[t_idx] = up_result.my_sum
-            
-            # Update the next start positions
-            down_next_start = down_result.next_start
-            up_next_start = up_result.next_start
+
+            down_sum, down_next_start = check_range_univ(X, a, down_next_start, t, :down)
+            up_sum, up_next_start = check_range_univ(X, a, up_next_start, t, :up)
             
             # Add cumulative sum from previous t to current t
             if t_idx > 1
-                curr_sum[t_idx] += curr_sum[t_idx - 1]
+                curr_sum[t_idx] = curr_sum[t_idx - 1]
             end
             
             # Add the current observed values to the obs_sum
-            curr_sum[t_idx] += down_cum[t_idx] + up_cum[t_idx]
+            # curr_sum: number around this specific a in X at this specific t
+            curr_sum[t_idx] += down_sum + up_sum
+
+            # obs_sum: number around all a in X so far at this specific t
             obs_sum[t_idx] += curr_sum[t_idx]
+
         end
     end
     
@@ -115,11 +110,14 @@ function k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
     area = maximum([maximum(X), maximum(Y)]) - minimum([minimum(X), minimum(Y)]) + 1    
     lambda_hat_x = Nx / area
     lambda_hat_y = Ny / area
+    println("Lambda X",lambda_hat_x)
+    println("Lambda Y", lambda_hat_y)
+
     
     obs_sum = zeros(length(T))
     K_hat = zeros(length(T))
     
-    @threads for t in 1:length(T)
+    for t in 1:length(T)
         start = 1
         for a in 1:Nx
             result = check_range_biv(X, Y, a, start, T[t])
@@ -128,7 +126,7 @@ function k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
         end
     end
     
-    K_hat = obs_sum ./ (lambda_hat_y * lambda_hat_y * area)
+    K_hat = obs_sum ./ (lambda_hat_x * lambda_hat_y * area)
     
     return K_hat
 end
