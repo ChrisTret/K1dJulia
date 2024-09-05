@@ -19,7 +19,13 @@ Processes genomic data from a TSV file according to various scenarios.
 # Returns
 - `Dict{String, Vector{Int64}}`: A dictionary where each key is a group name or `dict_key`, and each value is a vector of calculated centers or column values.
 """
-function process_genome_data(file_path::String; cluster_group::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing)::Dict{String, Vector{Int64}}
+function process_genome_data(
+    file_path::String; 
+    cluster_group::Union{String, Nothing}=nothing, 
+    start_col::Union{String, Nothing}=nothing, 
+    end_col::Union{String, Nothing}=nothing, 
+    dict_key::Union{String, Nothing}=nothing
+)::Dict{String, Vector{Int64}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
     result_dict = Dict{String, Vector{Int64}}()
@@ -82,7 +88,14 @@ Processes genomic data from a TSV file and organizes it by name and chromosome.
 # Returns
 - `Dict{String, Dict{String, Vector{Int64}}}`: A nested dictionary where the first key is the name, and the second key is the chromosome, with each value being a vector of calculated centers or column values.
 """
-function process_genome_data_by_chromosome(file_path::String; name_col::Union{String, Nothing}=nothing, chrom_col::String, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Vector{Int64}}}
+function process_genome_data_by_chromosome(
+    file_path::String; 
+    name_col::Union{String, Nothing}=nothing, 
+    chrom_col::String, 
+    start_col::Union{String, Nothing}=nothing, 
+    end_col::Union{String, Nothing}=nothing, 
+    dict_key::Union{String, Nothing}=nothing
+)::Dict{String, Dict{String, Vector{Int64}}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
     result_dict = Dict{String, Dict{String, Vector{Int64}}}()
@@ -135,7 +148,6 @@ end
 
 """
     process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, 
-                                  chrom_col::Union{String, Nothing}=nothing, 
                                   start_col::Union{String, Nothing}=nothing, 
                                   end_col::Union{String, Nothing}=nothing) 
                                   -> Dict{String, Dict{Int, Vector{Int64}}}
@@ -153,7 +165,13 @@ Processes genomic data by dividing each group (defined by the provided columns) 
 # Returns
 - `Dict{String, Dict{Int, Vector{Int64}}}`: A nested dictionary where each key is a group identifier (potentially including chromosome identifiers), and each value is another dictionary that maps region indices to vectors of genomic positions.
 """
-function process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing)::Dict{String, Dict{Int, Vector{Int64}}}
+function process_genome_data_by_region(
+    file_path::String; 
+    name_col::String, 
+    num_regions::Int, 
+    start_col::Union{String, Nothing}=nothing, 
+    end_col::Union{String, Nothing}=nothing
+)::Dict{String, Dict{Int, Vector{Int64}}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
     result_dict = Dict{String, Dict{Int, Vector{Int64}}}()
@@ -171,65 +189,34 @@ function process_genome_data_by_region(file_path::String; name_col::String, num_
         return nothing
     end
 
-    if chrom_col !== nothing
-        # Group by name and chromosome
-        grouped_data = groupby(data, [name_col, chrom_col])
-        for g in grouped_data
-            name = g[1, name_col]
-            chrom = g[1, chrom_col]
-            values = sort(g[:, data_col])
+    # Group by name only
+    grouped_data = groupby(data, name_col)
+    for g in grouped_data
+        name = g[1, name_col]
+        values = sort(g[:, data_col])
 
-            # Determine the min and max of the data column
-            min_val = minimum(values)
-            max_val = maximum(values)
-            region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
+        # Determine the min and max of the data column
+        min_val = minimum(values)
+        max_val = maximum(values)
+        region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
 
-            # Initialize the nested dictionaries if they don't exist
-            if !haskey(result_dict, "$name:$chrom")
-                result_dict["$name:$chrom"] = Dict{Int, Vector{Int64}}()
-            end
-
-            # Allocate regions
-            for i in 1:num_regions
-                result_dict["$name:$chrom"][i] = Int64[]
-            end
-
-            # Assign values to regions
-            for val in values
-                region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
-                push!(result_dict["$name:$chrom"][region], val)
-            end
+        # Initialize the nested dictionary if it doesn't exist
+        if !haskey(result_dict, name)
+            result_dict[name] = Dict{Int, Vector{Int64}}()
         end
-    else
-        # Group by name only
-        grouped_data = groupby(data, name_col)
-        for g in grouped_data
-            name = g[1, name_col]
-            values = sort(g[:, data_col])
 
-            # Determine the min and max of the data column
-            min_val = minimum(values)
-            max_val = maximum(values)
-            region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
+        # Allocate regions
+        for i in 1:num_regions
+            result_dict[name][i] = Int64[]
+        end
 
-            # Initialize the nested dictionary if it doesn't exist
-            if !haskey(result_dict, name)
-                result_dict[name] = Dict{Int, Vector{Int64}}()
-            end
-
-            # Allocate regions
-            for i in 1:num_regions
-                result_dict[name][i] = Int64[]
-            end
-
-            # Assign values to regions
-            for val in values
-                region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
-                push!(result_dict[name][region], val)
-            end
+        # Assign values to regions
+        for val in values
+            region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
+            push!(result_dict[name][region], val)
         end
     end
-
+    
     return result_dict
 end
 
@@ -252,16 +239,22 @@ Processes genomic data by dividing each group, defined by the provided columns, 
 - `end_col::Union{String, Nothing}=nothing`: The column name for the end position of genomic features. Must be provided if `start_col` is also specified.
 
 # Returns
-- `Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}`: A nested dictionary where each key is a group identifier, each sub-key is a chromosome identifier, and each sub-sub-key is a region index mapped to a vector of genomic positions.
+- `Dict{String, Dict{Int, Vector{Int64}}}`: A nested dictionary where each key is a group identifier, each sub-key is a chromosome identifier, and each sub-sub-key is a region index mapped to a vector of genomic positions.
 
 """
-function process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, num_regions::Int, chrom_col::String, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing)::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}} 
+function process_genome_data_by_region(
+    file_path::String;
+    name_col::String,
+    num_regions::Int,
+    start_col::Union{String, Nothing} = nothing,
+    end_col::Union{String, Nothing} = nothing
+)::Dict{String, Dict{Int, Vector{Int64}}}
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
-    result_dict = Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}()
+    result_dict = Dict{String, Dict{Int, Vector{Int64}}}()
 
     if start_col !== nothing && end_col !== nothing
-        # Calculate genoCenter
+        # Calculate center
         data[!, "Center"] = round.(Int, (data[:, start_col] .+ data[:, end_col]) ./ 2)
         data_col = "Center"
     elseif start_col !== nothing
@@ -269,15 +262,14 @@ function process_genome_data_by_chromosome_by_region(file_path::String; name_col
         data_col = start_col
     else
         # Reject attempt
-        println("Invalid function inputs for process_genome_data_by_chromosome_by_region")
+        println("Invalid function inputs for process_genome_data_by_region")
         return nothing
     end
 
-    # Group by name and chromosome
-    grouped_data = groupby(data, [name_col, chrom_col])
+    # Group by name only
+    grouped_data = groupby(data, name_col)
     for g in grouped_data
         name = g[1, name_col]
-        chrom = g[1, chrom_col]
         values = sort(g[:, data_col])
 
         # Determine the min and max of the data column
@@ -285,30 +277,25 @@ function process_genome_data_by_chromosome_by_region(file_path::String; name_col
         max_val = maximum(values)
         region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
 
-        # Initialize the nested dictionaries if they don't exist
+        # Initialize the nested dictionary if it doesn't exist
         if !haskey(result_dict, name)
-            result_dict[name] = Dict{String, Dict{Int, Vector{Int64}}}()
-        end
-        if !haskey(result_dict[name], chrom)
-            result_dict[name][chrom] = Dict{Int, Vector{Int64}}()
+            result_dict[name] = Dict{Int, Vector{Int64}}()
         end
 
         # Allocate regions
         for i in 1:num_regions
-            result_dict[name][chrom][i] = Int64[]
+            result_dict[name][i] = Int64[]
         end
 
         # Assign values to regions
         for val in values
             region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
-            push!(result_dict[name][chrom][region], val)
+            push!(result_dict[name][region], val)
         end
     end
 
     return result_dict
 end
-
-
 
 """
     merge_dictionaries(dicts::Vector{Dict{String, Vector{Int64}}}) -> Dict{String, Vector{Int64}}
@@ -321,7 +308,9 @@ Merges multiple dictionaries into a single dictionary, handling duplicate keys b
 # Returns
 - `Dict{String, Vector{Int64}}`: A dictionary with merged keys and concatenated vectors.
 """
-function merge_dictionaries(dicts::Vector{Dict{String, Vector{Int64}}})::Dict{String, Vector{Int64}}
+function merge_dictionaries(
+    dicts::Vector{Dict{String, Vector{Int64}}}
+)::Dict{String, Vector{Int64}}
     merged_dict = Dict{String, Vector{Int64}}()
     duplicate_info = DataFrame(Name=String[], NewName=String[], Dictionary=String[])
     key_counts = Dict{String, Int}()
@@ -371,7 +360,9 @@ Merges a vector of dictionaries into a single dictionary, handling duplicate key
 - Values from duplicate keys are concatenated.
 - A summary of renamed keys due to duplication is printed if any duplicates are found.
 """
-function merge_dictionaries(dicts::Vector{Dict{String, Dict{String, Vector{Int64}}}})::Dict{String, Dict{String, Vector{Int64}}}
+function merge_dictionaries(
+    dicts::Vector{Dict{String, Dict{String, Vector{Int64}}}}
+)::Dict{String, Dict{String, Vector{Int64}}}
     merged_dict = Dict{String, Dict{String, Vector{Int64}}}()
     duplicate_info = DataFrame(Name=String[], NewName=String[], Dictionary=String[])
     key_counts = Dict{String, Int}()
