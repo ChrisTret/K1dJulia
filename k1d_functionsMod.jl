@@ -50,7 +50,7 @@ function k1d_univ(X::Vector{Int64}, T::Vector{Int64})
 
         end
     end
-    
+
     K_hat .= obs_sum / (lambda_hat * N)
     return K_hat
 end
@@ -110,8 +110,6 @@ function k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
     area = maximum([maximum(X), maximum(Y)]) - minimum([minimum(X), minimum(Y)]) + 1    
     lambda_hat_x = Nx / area
     lambda_hat_y = Ny / area
-    println("Lambda X",lambda_hat_x)
-    println("Lambda Y", lambda_hat_y)
 
     
     obs_sum = zeros(length(T))
@@ -125,7 +123,7 @@ function k1d_biv(X::Vector{Int64}, Y::Vector{Int64}, T::Vector{Int64})
             start = result[2]
         end
     end
-    
+   # println("Obs_sum: ", obs_sum)
     K_hat = obs_sum ./ (lambda_hat_x * lambda_hat_y * area)
     
     return K_hat
@@ -184,9 +182,14 @@ function k1d_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64}
     # Get the keys of the dictionary
     dict_keys = collect(keys(Data))
 
-# Loop over each pair of keys (including the same-key pair)
+    # Loop over each pair of keys (enforce alphabetical order)
     for key1 in dict_keys
         for key2 in dict_keys
+            # Skip duplicate pairs by enforcing alphabetical order
+            if key1 > key2
+                continue
+            end
+
             # Get the genoCenter vectors for the current pair of keys
             X = Data[key1]
             Y = Data[key2]
@@ -196,11 +199,13 @@ function k1d_all_comparisons(Data::Dict{String, Vector{Int64}}, T::Vector{Int64}
             else
                 result = k1d_biv(X, Y, T)
             end
+            # Store results in alphabetical order
             results[(key1, key2)] = result
         end
     end
-return results
+    return results
 end
+
 
 
 """
@@ -230,6 +235,11 @@ function k1d_all_comparisons(data::Dict{String, Dict{Int, Vector{Int64}}}, T::Ve
     # Loop over each pair of outer keys
     for key1 in outer_keys
         for key2 in outer_keys
+            # Skip duplicate pairs by enforcing alphabetical order
+            if key1 > key2
+                continue
+            end
+
             # Get the inner dictionaries for the current pair of keys
             inner_dict1 = data[key1]
             inner_dict2 = data[key2]
@@ -262,7 +272,6 @@ function k1d_all_comparisons(data::Dict{String, Dict{Int, Vector{Int64}}}, T::Ve
     return results
 end
 
-
 """
     k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T::Vector{Int64}) 
     -> Dict{Tuple{String, String, String}, Vector{Float64}}
@@ -289,8 +298,12 @@ function k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T:
         inner_keys1 = keys(dict1)
         
         for key2 in outer_keys
+            # Skip duplicate pairs by enforcing alphabetical order
+            if key1 > key2
+                continue
+            end
+
             dict2 = data[key2]
-            inner_keys2 = keys(dict2)
 
             for chrom in inner_keys1
                 if haskey(dict2, chrom)
@@ -302,6 +315,7 @@ function k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T:
                     else
                         result = k1d_biv(X, Y, T)
                     end
+                    # Store results in alphabetical order
                     results[(key1, key2, chrom)] = result
                 end
             end
@@ -309,6 +323,7 @@ function k1d_all_comparisons(data::Dict{String, Dict{String, Vector{Int64}}}, T:
     end
     return results
 end
+
 
 
 """
@@ -333,6 +348,11 @@ function k1d_all_comparisons(data::Dict{String, Dict{String, Dict{Int, Vector{In
         inner_keys1 = keys(dict1)
         
         for key2 in outer_keys
+            # Enforce alphabetical ordering by swapping keys if necessary
+            if key1 > key2
+                continue
+            end
+
             dict2 = data[key2]
 
             for chrom in inner_keys1
@@ -390,10 +410,10 @@ function k1d_mean_across_chromosomes(k1d_results::Dict{Tuple{String, String, Str
         # Initialize a matrix to store k1d values for all matching chromosomes
         k1d_matrix = []
 
-        # Extract k1d values for each matching chromosome and stack them into a matrix
-        for (k1, k2, chrom) in keys(k1d_results)
-            if k1 == key1 && k2 == key2
-                push!(k1d_matrix, k1d_results[(k1, k2, chrom)])
+        # Extract k1d values for all matching chromosomes
+        for (key, value) in k1d_results
+            if (key[1], key[2]) == (key1, key2)
+                push!(k1d_matrix, value)
             end
         end
 
@@ -408,6 +428,7 @@ function k1d_mean_across_chromosomes(k1d_results::Dict{Tuple{String, String, Str
     
     return mean_results
 end
+
 
 
 """
@@ -426,32 +447,28 @@ function k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, String,
     # Initialize the dictionary to store mean values
     mean_results = Dict{Tuple{String, String}, Vector{Float64}}()
     
-    # Extract unique pairs of element names from k1d_results keys
-    pairs = unique((key[1], key[2]) for key in keys(k1d_results))
-    
-    # Loop over each pair of element names
-    for (key1, key2) in pairs
-        # Initialize a matrix to store k1d values for all matching chromosomes and regions
-        k1d_matrix = []
-
-        # Extract k1d values for each matching chromosome and region, and stack them into a matrix
-        for (k1, k2, chrom, region) in keys(k1d_results)
-            if k1 == key1 && k2 == key2
-                push!(k1d_matrix, k1d_results[(k1, k2, chrom, region)])
-            end
+    # Group data by element pairs to avoid repetitive filtering
+    grouped_results = Dict{Tuple{String, String}, Vector{Vector{Float64}}}()
+    for (key, value) in k1d_results
+        pair = (key[1], key[2])
+        if !haskey(grouped_results, pair)
+            grouped_results[pair] = []
         end
+        push!(grouped_results[pair], value)
+    end
 
-        if !isempty(k1d_matrix)
-            k1d_matrix = reduce(hcat, k1d_matrix)
-            
-            # Calculate the mean for each t
-            mean_values = mean(k1d_matrix, dims=2)
-            mean_results[(key1, key2)] = vec(mean_values)
-        end
+    # Compute mean values for each pair
+    for (pair, matrices) in grouped_results
+        # Combine all vectors into a single matrix
+        k1d_matrix = reduce(hcat, matrices)
+        # Calculate the mean for each t
+        mean_values = mean(k1d_matrix, dims=2)
+        mean_results[pair] = vec(mean_values)
     end
     
     return mean_results
 end
+
 
 
 """
@@ -478,10 +495,10 @@ function k1d_mean_across_regions(k1d_results::Dict{Tuple{String, String, Int}, V
         # Initialize a matrix to store k1d values for all matching regions
         k1d_matrix = []
 
-        # Extract k1d values for each matching region, and stack them into a matrix
-        for (k1, k2, region) in keys(k1d_results)
-            if k1 == key1 && k2 == key2
-                push!(k1d_matrix, k1d_results[(k1, k2, region)])
+        # Extract k1d values for all matching regions
+        for (key, value) in k1d_results
+            if (key[1], key[2]) == (key1, key2)
+                push!(k1d_matrix, value)
             end
         end
 
