@@ -1,17 +1,17 @@
 module DataWrangling
 
-export process_genome_data, merge_dictionaries, process_genome_data_by_chromosome, process_genome_data_by_region, process_genome_data_by_chromosome_by_region
+export process_genome_data, merge_dictionaries, process_genome_data_by_chromosome, process_genome_data_by_region, process_genome_data_by_chromosome_by_region, transform_by_region
 
 using CSV, DataFrames, Statistics
 
 """
-    process_genome_data(file_path::String; cluster_group::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing, percentile::Union{Float64, Nothing}=nothing) -> Dict{String, Vector{Int64}}
+    process_genome_data(file_path::String; name_col::Union{String, Nothing}=nothing, start_col::Union{String, Nothing}=nothing, end_col::Union{String, Nothing}=nothing, dict_key::Union{String, Nothing}=nothing, percentile::Union{Float64, Nothing}=nothing) -> Dict{String, Vector{Int64}}
 
 Processes genomic data from a TSV file according to various scenarios.
 
 # Arguments
 - `file_path::String`: The path to the TSV file containing the genomic data.
-- `cluster_group::Union{String, Nothing}`: The column name to group by (e.g., 'repFamily').
+- `name_col::Union{String, Nothing}`: The column name to group by (e.g., 'repFamily').
 - `start_col::Union{String, Nothing}`: The name of the column indicating the start of an element.
 - `end_col::Union{String, Nothing}`: The name of the column indicating the end of an element.
 - `dict_key::Union{String, Nothing}`: The name to use as the key in the returned dictionary.
@@ -21,7 +21,7 @@ Processes genomic data from a TSV file according to various scenarios.
 """
 function process_genome_data(
     file_path::String; 
-    cluster_group::Union{String, Nothing}=nothing, 
+    name_col::Union{String, Nothing}=nothing, 
     start_col::Union{String, Nothing}=nothing, 
     end_col::Union{String, Nothing}=nothing, 
     dict_key::Union{String, Nothing}=nothing
@@ -34,11 +34,11 @@ function process_genome_data(
         # Calculate genoCenter
         data[!, "Center"] = round.(Int, (data[:, start_col] .+ data[:, end_col]) ./ 2)
 
-        if cluster_group !== nothing
-            # Group the data by cluster_group
-            grouped_data = groupby(data, cluster_group)
+        if name_col !== nothing
+            # Group the data by name_col
+            grouped_data = groupby(data, name_col)
             for g in grouped_data
-                family = g[1, cluster_group]
+                family = g[1, name_col]
                 geno_centers = g[:, "Center"]
                 result_dict[family] = sort(geno_centers)
             end
@@ -50,11 +50,11 @@ function process_genome_data(
     elseif start_col !== nothing
         # Process data with only start column
 
-        if cluster_group !== nothing
-            # Group the data by cluster_group
-            grouped_data = groupby(data, cluster_group)
+        if name_col !== nothing
+            # Group the data by name_col
+            grouped_data = groupby(data, name_col)
             for g in grouped_data
-                family = g[1, cluster_group]
+                family = g[1, name_col]
                 geno_starts = g[:, start_col]
                 result_dict[family] = sort(geno_starts)
             end
@@ -147,34 +147,37 @@ end
 
 
 """
-    process_genome_data_by_region(file_path::String; name_col::String, num_regions::Int, 
-                                  start_col::Union{String, Nothing}=nothing, 
-                                  end_col::Union{String, Nothing}=nothing) 
-                                  -> Dict{String, Dict{Int, Vector{Int64}}}
+    process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, 
+                                                num_regions::Int, chrom_col::String, 
+                                                start_col::Union{String, Nothing}=nothing, 
+                                                end_col::Union{String, Nothing}=nothing) 
+                                                -> Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}
 
-Processes genomic data by dividing each group (defined by the provided columns) into a specified number of regions based on genomic coordinates. 
+Processes genomic data by dividing each group, defined by the provided columns, into a specified number of regions for each chromosome based on genomic coordinates.
 
 # Arguments
 - `file_path::String`: The path to the TSV file containing genomic data.
 - `name_col::String`: The column name in the TSV file that contains group names (e.g., gene names).
-- `num_regions::Int`: The number of regions into which to divide the genomic data for each group.
-- `chrom_col::Union{String, Nothing}=nothing`: The column name for chromosome identifiers. If provided, data will be grouped by both the `name_col` and `chrom_col`.
+- `num_regions::Int`: The number of regions into which to divide the genomic data for each group and chromosome.
+- `chrom_col::String`: The column name for chromosome identifiers. Data will be grouped by both the `name_col` and `chrom_col`.
 - `start_col::Union{String, Nothing}=nothing`: The column name for the start position of genomic features. Must be provided if `end_col` is also specified.
 - `end_col::Union{String, Nothing}=nothing`: The column name for the end position of genomic features. Must be provided if `start_col` is also specified.
 
 # Returns
-- `Dict{String, Dict{Int, Vector{Int64}}}`: A nested dictionary where each key is a group identifier (potentially including chromosome identifiers), and each value is another dictionary that maps region indices to vectors of genomic positions.
+- `Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}`: A nested dictionary where each key is a group identifier, each sub-key is a chromosome identifier, and each sub-sub-key is a region index mapped to a vector of genomic positions.
+
 """
-function process_genome_data_by_region(
+function process_genome_data_by_chromosome_by_region(
     file_path::String; 
     name_col::String, 
     num_regions::Int, 
+    chrom_col::String, 
     start_col::Union{String, Nothing}=nothing, 
     end_col::Union{String, Nothing}=nothing
-)::Dict{String, Dict{Int, Vector{Int64}}}
+)::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}} 
     # Read the TSV file into a DataFrame
     data = CSV.read(file_path, DataFrame; header = 1)
-    result_dict = Dict{String, Dict{Int, Vector{Int64}}}()
+    result_dict = Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}()
 
     if start_col !== nothing && end_col !== nothing
         # Calculate genoCenter
@@ -185,14 +188,15 @@ function process_genome_data_by_region(
         data_col = start_col
     else
         # Reject attempt
-        println("Invalid function inputs for process_genome_data_by_region")
+        println("Invalid function inputs for process_genome_data_by_chromosome_by_region")
         return nothing
     end
 
-    # Group by name only
-    grouped_data = groupby(data, name_col)
+    # Group by name and chromosome
+    grouped_data = groupby(data, [name_col, chrom_col])
     for g in grouped_data
         name = g[1, name_col]
+        chrom = g[1, chrom_col]
         values = sort(g[:, data_col])
 
         # Determine the min and max of the data column
@@ -200,29 +204,33 @@ function process_genome_data_by_region(
         max_val = maximum(values)
         region_size = ceil(Int, (max_val - min_val + 1) / num_regions)
 
-        # Initialize the nested dictionary if it doesn't exist
+        # Initialize the nested dictionaries if they don't exist
         if !haskey(result_dict, name)
-            result_dict[name] = Dict{Int, Vector{Int64}}()
+            result_dict[name] = Dict{String, Dict{Int, Vector{Int64}}}()
+        end
+        if !haskey(result_dict[name], chrom)
+            result_dict[name][chrom] = Dict{Int, Vector{Int64}}()
         end
 
         # Allocate regions
         for i in 1:num_regions
-            result_dict[name][i] = Int64[]
+            result_dict[name][chrom][i] = Int64[]
         end
 
         # Assign values to regions
         for val in values
             region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
-            push!(result_dict[name][region], val)
+            push!(result_dict[name][chrom][region], val)
         end
     end
-    
+
     return result_dict
 end
 
 
+
 """
-    process_genome_data_by_chromosome_by_region(file_path::String; name_col::String, 
+    process_genome_data_by_region(file_path::String; name_col::String, 
                                                 num_regions::Int, chrom_col::String, 
                                                 start_col::Union{String, Nothing}=nothing, 
                                                 end_col::Union{String, Nothing}=nothing) 
@@ -400,4 +408,85 @@ function merge_dictionaries(
     return merged_dict
 end
 
+
+function transform_by_region(
+    merged_dict::Dict{String, Dict{String, Vector{Int64}}}, 
+    num_regions::Int
+)::Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}
+    # Initialize the result dictionary
+    region_dict = Dict{String, Dict{String, Dict{Int, Vector{Int64}}}}()
+
+    # Step 1: Determine regions globally for each chromosome
+    chromosome_regions = Dict{String, Tuple{Int, Int, Int}}() # chrom => (min_val, max_val, region_size)
+
+    # Step 1: Determine global min, max, and region_size for each chromosome
+    for chrom_dict in values(merged_dict)
+        for (chrom, values) in chrom_dict
+            # If chromosome is already in chromosome_regions, update min and max
+            if haskey(chromosome_regions, chrom)
+                global_min, global_max, _ = chromosome_regions[chrom]
+                chromosome_regions[chrom] = (
+                    min(global_min, minimum(values)), # Update global min
+                    max(global_max, maximum(values)), # Update global max
+                    0 # Placeholder for region_size
+                )
+            else
+                # Initialize min and max for this chromosome
+                chromosome_regions[chrom] = (
+                    minimum(values), 
+                    maximum(values), 
+                    0 # Placeholder for region_size
+                )
+            end
+        end
+    end
+
+    # Step 2: Calculate region size for each chromosome based on global min and max
+    for chrom in keys(chromosome_regions)
+        global_min, global_max, _ = chromosome_regions[chrom]
+        region_size = ceil(Int, (global_max - global_min + 1) / num_regions)
+        chromosome_regions[chrom] = (global_min, global_max, region_size)
+    end
+
+
+    # Step 2: Assign values to regions for each name
+    for (name, chrom_dict) in merged_dict
+        # Initialize name entry in region_dict
+        if !haskey(region_dict, name)
+            region_dict[name] = Dict{String, Dict{Int, Vector{Int64}}}()
+        end
+
+        for (chrom, values) in chrom_dict
+            # Retrieve region info for the chromosome
+            if !haskey(chromosome_regions, chrom)
+                println("Chromosome $chrom has no global region information. Skipping...")
+                continue
+            end
+
+            min_val, _, region_size = chromosome_regions[chrom]
+
+            # Initialize chromosome entry in region_dict[name]
+            if !haskey(region_dict[name], chrom)
+                region_dict[name][chrom] = Dict{Int, Vector{Int64}}()
+            end
+
+            # Initialize all regions
+            for i in 1:num_regions
+                region_dict[name][chrom][i] = Int64[]
+            end
+
+            # Allocate values to regions
+            for val in sort(values)
+                region = min(num_regions, ceil(Int, (val - min_val + 1) / region_size))
+                push!(region_dict[name][chrom][region], val)
+            end
+        end
+    end
+
+    return region_dict
+end
+
+
+
 end # end of module
+
