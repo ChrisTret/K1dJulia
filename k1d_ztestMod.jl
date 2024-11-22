@@ -1,8 +1,10 @@
 module K1dZTests
 
-using Distributions, Printf
+include("k1d_heatmapMod.jl")
 
-export z_test, z_tests_all_comparisons, print_z_summary, z_proportions, top_n_means
+using .K1dHeatmap, Distributions, Printf, DataFrames, CSV
+
+export z_test, z_tests_all_comparisons, print_z_summary, z_proportions, top_n_means, top_n_maxes, export_numerator_denominator_to_csv
 
 
 """
@@ -31,7 +33,7 @@ Performs a z-test on the provided data to assess significant deviations from the
 
 # Arguments
 - `results::Dict{Tuple{String, String}, Vector{Float64}}`: A dictionary containing vectors of results for each key pair.
-- `T::Vector{Int64}`: A vector of distances or time points at which tests are performed.
+- `T::Vector{Int64}`: A vector of distances at which tests are performed.
 - `key_pair::Tuple{String, String}`: A tuple representing the key pair for which the z-test is performed.
 - `variance::Vector{Float64}`: A vector of variances corresponding to the result vectors for the given key pair.
 - `alpha::Float64 = 0.05`: Significance level for the test (default is 0.05).
@@ -47,25 +49,21 @@ function z_test(results::Dict{Tuple{String, String}, Vector{Float64}}, T::Vector
 
     z_test = quantile(Normal(), 1 - alpha/2)
     max_abs_z = maximum(abs.(z_obs))
+    max_z = maximum(z_obs)
     
-    if max_abs_z > z_test
-        most_sig_distance = T[argmax(abs.(z_obs))]
-        most_sig_distance_z = z_obs[argmax(abs.(z_obs))] # retains Z-score sign
+    idx_most_sig = argmax(abs.(z_obs))
+    most_sig_distance = T[idx_most_sig]
+    most_sig_distance_z = z_obs[idx_most_sig]
+    most_sig_distance_numerator = mean_centered[idx_most_sig]
+    most_sig_distance_denominator = sqrt(variance[idx_most_sig])
 
-        # Find the largest z-scores in absolute value and filter based on z_test
-        sorted_indices = sortperm(abs.(z_obs), rev=true)
-        top_indices = filter(i -> abs(z_obs[i]) > z_test, sorted_indices)
-        top_indices = first(top_indices, 10)
-        top_distances = T[top_indices]
-        top_z_scores = z_obs[top_indices]
-        top_p_vals = p_vals[top_indices]
-    else
-        most_sig_distance = nothing
-        most_sig_distance_z = nothing
-        top_distances = nothing
-        top_z_scores = nothing
-        top_p_vals = nothing
-    end
+    # Find the largest z-scores in absolute value and filter based on z_test
+    sorted_indices = sortperm(abs.(z_obs), rev=true)
+    top_indices = filter(i -> abs(z_obs[i]) > z_test, sorted_indices)
+    top_indices = first(top_indices, 10)
+    top_distances = T[top_indices]
+    top_z_scores = z_obs[top_indices]
+    top_p_vals = p_vals[top_indices]
 
     clustering = z_obs .> z_test
     dispersion = z_obs .< -z_test
@@ -80,8 +78,11 @@ function z_test(results::Dict{Tuple{String, String}, Vector{Float64}}, T::Vector
     summary = (
         key_pair = key_pair,
         z_scores = z_obs,
+        max_z = max_z,
         most_sig_distance = most_sig_distance,
         most_sig_distance_z = most_sig_distance_z,
+        most_sig_distance_numerator = most_sig_distance_numerator,
+        most_sig_distance_denominator = most_sig_distance_denominator,
         top_distances = top_distances,
         top_z_scores = top_z_scores,
         top_p_vals = top_p_vals,
@@ -270,10 +271,13 @@ Calculates and prints the top `n` and bottom `n` key pairs with the largest and 
 """
 function top_n_means(z_scores_dict::Dict{Tuple{String, String}, NamedTuple}, n::Int=10)
     # Create a vector to hold (key, mean_z) tuples
-    mean_z_scores = [(key, mean(value.z_scores)) for (key, value) in z_scores_dict]
-    
+    mean_z_scores = [((min(key[1], key[2]), max(key[1], key[2])), mean(value.z_scores)) for (key, value) in z_scores_dict]
+
+    # Remove duplicates by creating a set of unique tuples
+    unique_mean_z_scores = Dict(mean_z_scores)
+
     # Sort the vector by mean Z-scores in descending order
-    sorted_means = sort(mean_z_scores, by = x -> x[2], rev = true)
+    sorted_means = sort(collect(unique_mean_z_scores), by = x -> x[2], rev = true)
 
     # Get the top n key pairs and their mean Z-scores
     top_n_keys_and_means = first(sorted_means, n)
@@ -299,5 +303,111 @@ function top_n_means(z_scores_dict::Dict{Tuple{String, String}, NamedTuple}, n::
     return (top_n_keys_and_means, bottom_n_keys_and_means)
 end
 
+
+function top_n_maxes(z_scores_dict::Dict{Tuple{String, String}, NamedTuple}, n::Int=10)
+    # Create a vector to hold (key, max_z) tuples
+    max_z_scores = [((min(key[1], key[2]), max(key[1], key[2])), value.max_z) for (key, value) in z_scores_dict]
+
+    # Remove duplicates by creating a set of unique tuples
+    unique_max_z_scores = Dict(max_z_scores)
+
+    # Sort the vector by max Z-scores in descending order
+    sorted_maxes = sort(collect(unique_max_z_scores), by = x -> x[2], rev = true)
+
+    # Get the top n key pairs and their max Z-scores
+    top_n_keys_and_maxes = first(sorted_maxes, n)
+
+    # Get the bottom n key pairs and their max Z-scores
+    bottom_n_keys_and_maxes = last(sorted_maxes, n)
+
+    # Print the result in the desired format
+    println("Pairs with largest max Z-scores")
+    println(@sprintf("%-15s\t%-50s", "Max Z-score", "Pairs"))
+    println("=" ^ 65)
+    for (pair, max_z) in top_n_keys_and_maxes
+        println(@sprintf("%-15.4f\t%-50s", max_z, pair))
+    end
+
+    println("\nPairs with smallest max Z-scores")
+    println(@sprintf("%-15s\t%-50s", "Max Z-score", "Pairs"))
+    println("=" ^ 65)
+    for (pair, max_z) in bottom_n_keys_and_maxes
+        println(@sprintf("%-15.4f\t%-50s", max_z, pair))
+    end
+
+    return (top_n_keys_and_maxes, bottom_n_keys_and_maxes)
+end
+
+
+function extract_most_sig_z_numerator(summaries::Dict{Tuple{String, String}, NamedTuple})
+    sig_z_dict = Dict{Tuple{String, String}, Float64}()
+    for (key_pair, summary) in summaries
+        if !isnothing(summary.most_sig_distance_numerator)
+            sig_z_dict[key_pair] = summary.most_sig_distance_numerator
+        else
+            sig_z_dict[key_pair] = NaN
+        end
+    end
+    return sig_z_dict
+end
+
+
+function extract_most_sig_z_denominator(summaries::Dict{Tuple{String, String}, NamedTuple})
+    sig_z_dict = Dict{Tuple{String, String}, Float64}()
+    for (key_pair, summary) in summaries
+        if !isnothing(summary.most_sig_distance_denominator)
+            sig_z_dict[key_pair] = summary.most_sig_distance_denominator
+        else
+            sig_z_dict[key_pair] = NaN
+        end
+    end
+    return sig_z_dict
+end
+
+
+function export_numerator_denominator_to_csv(summaries::Dict{Tuple{String, String}, NamedTuple}; filename::Union{String, Nothing} = nothing)
+    # Get the heatmap matrix and sorted keys
+    numerator_dict = extract_most_sig_z_numerator(summaries)
+    denominator_dict = extract_most_sig_z_denominator(summaries)
+    numerator_matrix, numerator_keys = create_matrix(numerator_dict)
+    denominator_matrix, denominator_keys = create_matrix(denominator_dict)
+    
+    # Convert the matrix to a DataFrame
+    df_num = DataFrame(numerator_matrix, :auto)  # Automatically generate column names (for now)
+    df_den = DataFrame(denominator_matrix, :auto)
+
+    # Rename columns with sorted keys (ensure length matches the number of columns)
+    # The number of columns in `heatmap_matrix` must match the number of `sorted_keys`
+    num_col_names = numerator_keys  # Concatenate 'Key1' for the row labels with sorted keys
+    den_col_names = denominator_keys
+
+
+    # Check if the length of new_col_names matches the number of columns in df
+    if length(num_col_names) != ncol(df_num)
+        error("The number of numerator column names does not match the number of columns in the DataFrame.")
+    end
+    if length(den_col_names) != ncol(df_den)
+        error("The number of denominator column names does not match the number of columns in the DataFrame.")
+    end
+
+    rename!(df_num, num_col_names)
+    rename!(df_den, den_col_names)
+
+    # Insert the sorted keys as the first column for row labels
+    insertcols!(df_num, 1, :Names => numerator_keys)
+    insertcols!(df_den, 1, :Names => denominator_keys)
+
+
+    if filename !== nothing
+        filename_num = "numerator_" * filename
+        filename_den = "denominator_" * filename
+    else
+        filename_num = "numerator.csv"
+        filename_den = "denominator.csv"
+    end
+    # Save the DataFrame as a CSV file
+    CSV.write(filename_num, df_num)
+    CSV.write(filename_den, df_den)
+end
 
 end # end of module
